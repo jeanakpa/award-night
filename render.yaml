@@ -37,4 +37,5 @@ databases:
   - name: award-db
     databaseName: award
     user: award_user
+    region: frankfurt
     plan: free

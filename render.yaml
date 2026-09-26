@@ -20,18 +20,19 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: static
+          type: web
           name: award-frontend
           property: url
       - key: CORS_ORIGINS
         fromService:
-          type: static
+          type: web
           name: award-frontend
           property: url
 
-  # 2. Frontend React Vite Static Site
-  - type: static
+  # 2. Frontend React Vite Static Site (Render uses env: static under type: web)
+  - type: web
     name: award-frontend
+    env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     envVars:

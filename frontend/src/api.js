@@ -1,25 +1,9 @@
 import axios from 'axios';
 
-const getBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-  if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    // On Render static site hosting (.onrender.com):
-    if (hostname.endsWith('.onrender.com')) {
-      return `${protocol}//award-backend-wnze.onrender.com/api`;
-    }
-    if (import.meta.env.PROD && !hostname.includes('localhost')) {
-      return `${protocol}//${hostname}/api`;
-    }
-    return `${protocol}//${hostname}:5000/api`;
-  }
-  return 'http://localhost:5000/api';
-};
-
-export const API_BASE_URL = getBaseUrl();
+// In production builds (on Render CDN), always target the active backend API:
+export const API_BASE_URL = import.meta.env.PROD
+  ? 'https://award-backend-wnze.onrender.com/api'
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

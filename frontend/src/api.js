@@ -9,9 +9,6 @@ const getBaseUrl = () => {
     const hostname = window.location.hostname;
     // On Render static site hosting (.onrender.com):
     if (hostname.endsWith('.onrender.com')) {
-      if (hostname.includes('award-frontend')) {
-        return `${protocol}//${hostname.replace('award-frontend', 'award-backend')}/api`;
-      }
       return `${protocol}//award-backend-wnze.onrender.com/api`;
     }
     if (import.meta.env.PROD && !hostname.includes('localhost')) {

@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    background-color: #070E1B;
+    color: #F1F6FF;
+    overflow-x: hidden;
+  }
+}
+
+/* Midnight Blue & Vibrant Orange Theme Utilities */
+.bg-emerald-theme {
+  background-color: #070E1B;
+}
+
+.bg-emerald-dark {
+  background-color: #0B1324;
+}
+
+.bg-emerald-card {
+  background-color: #0E1C33;
+}
+
+
+/* Vibrant Orange Action Button & Glow */
+.bg-btn-orange {
+  background: linear-gradient(135deg, #FF5500 0%, #FF6E00 100%);
+  color: #FFFFFF;
+}
+
+.bg-btn-orange-hover:hover {
+  background: linear-gradient(135deg, #FF661A 0%, #FF5500 100%);
+  box-shadow: 0 8px 25px -4px rgba(255, 85, 0, 0.45);
+}
+
+.text-orange-vibrant {
+  color: #FF5500;
+}
+
+.border-orange-vibrant {
+  border-color: #FF5500;
+}
+
+/* Midnight Blue Card System */
+.card-emerald {
+  background: rgba(14, 28, 51, 0.85);
+  border: 1px solid rgba(30, 58, 102, 0.5);
+  backdrop-filter: blur(12px);
+}
+
+.card-emerald-hover:hover {
+  border-color: rgba(255, 85, 0, 0.5);
+  box-shadow: 0 12px 35px -8px rgba(30, 58, 102, 0.4);
+}
+
+/* Gold Accent for Awards */
+.text-gold-accent {
+  color: #FFD700;
+}
+
+.bg-gold-accent {
+  background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
+}
+
+/* Pill Tabs Active State */
+.pill-active {
+  background-color: #FF5500;
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(255, 85, 0, 0.35);
+}
+
+.pill-inactive {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #94B3DE;
+}
+
+.pill-inactive:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  color: #FFFFFF;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #070E1B;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A2F50;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF5500;
+}
+

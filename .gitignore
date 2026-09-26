@@ -1,0 +1,42 @@
+# Secrets & Environment Variables
+.env
+.env.local
+.env.production
+.env.development
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+.venv/
+venv/
+ENV/
+env/
+
+# Databases & Backups
+*.db
+*.sqlite
+*.sqlite3
+instances/
+database_dump.sql
+
+# Test Artifacts & Temporary Files
+test_ticket.pdf
+docx_extracted.txt
+*.log
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

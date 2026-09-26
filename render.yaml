@@ -18,30 +18,13 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: award-frontend
-          property: url
-      - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: award-frontend
-          property: url
 
-  # 2. Frontend React Vite Static Site (Render uses env: static under type: web)
+  # 2. Frontend React Static Site
   - type: web
     name: award-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
-    envVars:
-      - key: VITE_API_BASE_URL
-        fromService:
-          type: web
-          name: award-backend
-          property: url
-          append: /api
     routes:
       - type: rewrite
         source: /*
@@ -51,5 +34,5 @@ databases:
   # 3. PostgreSQL Database
   - name: award-db
     databaseName: award
-    user: postgres
+    user: award_user
     plan: free

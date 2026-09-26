@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, User, Phone, MessageSquare, Mail, Ticket, ArrowRight, ShieldCheck, Sparkles, RefreshCw } from 'lucide-react';
+import { API_BASE_URL } from '../api';
 
 export default function TicketModal({ isOpen, onClose, onOrderCreated }) {
   const [formData, setFormData] = useState({
@@ -49,7 +50,7 @@ export default function TicketModal({ isOpen, onClose, onOrderCreated }) {
 
     try {
       // 1. Create ticket order
-      const purchaseRes = await fetch('/api/tickets/purchase', {
+      const purchaseRes = await fetch(`${API_BASE_URL}/tickets/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -66,7 +67,7 @@ export default function TicketModal({ isOpen, onClose, onOrderCreated }) {
       const ticket = purchaseData.ticket;
 
       // 2. Initiate Jeko Payment directly
-      const jekoRes = await fetch('/api/payments/jeko-initiate', {
+      const jekoRes = await fetch(`${API_BASE_URL}/payments/jeko-initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -83,7 +84,7 @@ export default function TicketModal({ isOpen, onClose, onOrderCreated }) {
           window.location.href = jekoData.redirect_url;
         } else {
           // Simulate/Confirm payment locally if test mode
-          const simRes = await fetch('/api/payments/process-simulated', {
+          const simRes = await fetch(`${API_BASE_URL}/payments/process-simulated`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

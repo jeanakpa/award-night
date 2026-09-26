@@ -7,17 +7,22 @@ const getBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location) {
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    // In production build served from same domain/proxy:
+    // On Render static site hosting (.onrender.com):
+    if (hostname.endsWith('.onrender.com')) {
+      if (hostname.includes('award-frontend')) {
+        return `${protocol}//${hostname.replace('award-frontend', 'award-backend')}/api`;
+      }
+      return `${protocol}//award-backend-wnze.onrender.com/api`;
+    }
     if (import.meta.env.PROD && !hostname.includes('localhost')) {
       return `${protocol}//${hostname}/api`;
     }
-    // In dev or local testing:
     return `${protocol}//${hostname}:5000/api`;
   }
   return 'http://localhost:5000/api';
 };
 
-const API_BASE_URL = getBaseUrl();
+export const API_BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

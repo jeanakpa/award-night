@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, User, Phone, Mail, Ticket, ArrowRight, ShieldCheck, RefreshCw, CreditCard } from 'lucide-react';
+import { API_BASE_URL } from '../api';
 
 export default function PurchasePage({ onBack, onOrderCreated }) {
   const [formData, setFormData] = useState({
@@ -38,7 +39,7 @@ export default function PurchasePage({ onBack, onOrderCreated }) {
 
     try {
       // 1. Create ticket order on backend
-      const purchaseRes = await fetch('/api/tickets/purchase', {
+      const purchaseRes = await fetch(`${API_BASE_URL}/tickets/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,7 +62,7 @@ export default function PurchasePage({ onBack, onOrderCreated }) {
       const ticket = purchaseData.ticket;
 
       // 2. Initiate Jeko Payment to obtain checkout URL for chosen operator
-      const jekoRes = await fetch('/api/payments/jeko-initiate', {
+      const jekoRes = await fetch(`${API_BASE_URL}/payments/jeko-initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

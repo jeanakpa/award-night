@@ -1,5 +1,5 @@
 import os
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from config import Config
 from models import db, AdminUser, Ticket
@@ -10,8 +10,7 @@ def create_app():
     app.config.from_object(Config)
 
     # CORS configuration
-    origins = app.config.get('CORS_ORIGINS', '*')
-    CORS(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     db.init_app(app)
 
@@ -19,13 +18,31 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(payment_bp)
 
-    # Security Headers
+    # Dynamic CORS & Security Headers
     @app.after_request
     def add_security_headers(response):
+        origin = request.headers.get('Origin')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        return response
+
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
+    def handle_options(path):
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin')
+        if origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
         return response
 
     # Route to serve local IMAGES

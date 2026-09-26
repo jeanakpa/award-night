@@ -77,12 +77,12 @@ export default function PurchasePage({ onBack, onOrderCreated }) {
         // ALWAYS redirect directly to Jeko Payment Platform checkout page
         window.location.href = jekoData.redirect_url;
       } else {
-        setError(jekoData.error || 'Échec d\'initialisation du paiement Jèko.');
+        setError(jekoData.error || jekoData.message || 'Échec d\'initialisation du paiement Jèko.');
         setLoading(false);
       }
     } catch (err) {
-      console.error(err);
-      setError('Une erreur réseau est survenue. Veuillez réessayer.');
+      console.error("Purchase error details:", err);
+      setError(`Erreur réseau (${err.message || 'serveur inaccessible'}). Veuillez réessayer.`);
     } finally {
       setLoading(false);
     }

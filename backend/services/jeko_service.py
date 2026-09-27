@@ -129,28 +129,35 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
             "message": "Impossible d'atteindre Jèko."
         }
 
-    if response is not None and response.status_code in (200, 201):
-        data = response.json()
-        payment_id = data.get('id')
-        redirect_url = data.get('redirectUrl') or data.get('checkoutUrl') or f"https://pay.jeko.africa/pr/{payment_id}"
+    if response is not None:
+        if response.status_code in (200, 201):
+            data = response.json()
+            payment_id = data.get('id')
+            redirect_url = data.get('redirectUrl') or data.get('checkoutUrl') or f"https://pay.jeko.africa/pr/{payment_id}"
 
-        try:
-            ticket.jeko_payment_id = payment_id
-            ticket.redirect_url = redirect_url
-            ticket.payment_method = f"jeko-{jeko_method}"
-            db.session.commit()
-        except Exception as dberr:
-            print(f"[JEKO DB SAVE LOG] {dberr}")
-            db.session.rollback()
+            try:
+                ticket.jeko_payment_id = payment_id
+                ticket.redirect_url = redirect_url
+                ticket.payment_method = f"jeko-{jeko_method}"
+                db.session.commit()
+            except Exception as dberr:
+                print(f"[JEKO DB SAVE LOG] {dberr}")
+                db.session.rollback()
 
-        return {
-            "success": True,
-            "jeko_payment_id": payment_id,
-            "redirect_url": redirect_url,
-            "message": "Paiement Jèko initialisé avec succès."
-        }
+            return {
+                "success": True,
+                "jeko_payment_id": payment_id,
+                "redirect_url": redirect_url,
+                "message": "Paiement Jèko initialisé avec succès."
+            }
+        else:
+            print(f"[JEKO API ERROR] Status {response.status_code}: {response.text}")
+            return {
+                "success": False,
+                "error": f"Erreur Jèko API ({response.status_code}): {response.text}",
+                "message": "Échec d'initialisation du paiement Jèko."
+            }
 
-    print(f"[JEKO API ERROR] Status {response.status_code if response else 'None'}: {response.text if response else ''}")
     return {
         "success": False,
         "error": "Impossible d'initialiser le paiement Jèko. Veuillez réessayer.",

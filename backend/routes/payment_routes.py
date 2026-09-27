@@ -7,21 +7,24 @@ payment_bp = Blueprint('payment', __name__)
 
 @payment_bp.route('/api/payments/jeko-initiate', methods=['POST'])
 def initiate_jeko_payment():
-    data = request.get_json() or {}
-    reference = data.get('reference')
-    operator = data.get('operator', 'wave')
+    try:
+        data = request.get_json() or {}
+        reference = data.get('reference')
+        operator = data.get('operator', 'wave')
 
-    if not reference:
-        return jsonify({'error': 'Référence du billet requise.'}), 400
+        if not reference:
+            return jsonify({'error': 'Référence du billet requise.'}), 400
 
-    ticket = Ticket.query.filter_by(reference=reference).first()
-    if not ticket:
-        return jsonify({'error': 'Billet non trouvé.'}), 404
+        ticket = Ticket.query.filter_by(reference=reference).first()
+        if not ticket:
+            return jsonify({'error': 'Billet non trouvé.'}), 404
 
-    # Determine host for callbacks
-    host_url = request.host_url.rstrip('/')
-    result = create_jeko_payment_request(ticket, operator, host_url)
-    return jsonify(result), 200
+        host_url = request.host_url.rstrip('/')
+        result = create_jeko_payment_request(ticket, operator, host_url)
+        return jsonify(result), 200
+    except Exception as err:
+        print(f"[JEKO INITIATE ERROR] {err}")
+        return jsonify({'error': f'Erreur initialisation paiement: {str(err)}'}), 500
 
 @payment_bp.route('/api/payments/jeko-callback', methods=['GET', 'POST'])
 def jeko_callback():
@@ -30,14 +33,13 @@ def jeko_callback():
     status = request.args.get('status') or json_data.get('status')
     payment_id = request.args.get('id') or json_data.get('id')
 
-    # Determine active network IP dynamically from request (Origin, Referer, Host)
     request_host = extract_request_network_ip()
-    frontend_url = f"https://{request_host}:5173"
+    frontend_url = current_app.config.get('FRONTEND_URL') or f"https://{request_host}"
 
     if not reference:
         return redirect(f"{frontend_url}/?payment_status=error", code=302)
 
-    if status == 'error' or status == 'failed':
+    if status in ('error', 'failed'):
         ticket = Ticket.query.filter_by(reference=reference).first()
         if ticket:
             ticket.payment_status = 'FAILED'
@@ -55,7 +57,6 @@ def jeko_callback():
         return redirect(f"{frontend_url}/?page=success&ticket_ref={reference}&payment_status=success", code=302)
     else:
         return redirect(f"{frontend_url}/?page=error&ticket_ref={reference}&payment_status=error", code=302)
-
 
 @payment_bp.route('/api/payments/jeko-webhook', methods=['POST'])
 def jeko_webhook():

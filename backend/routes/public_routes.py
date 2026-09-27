@@ -3,6 +3,7 @@ from models import db, Ticket
 from services.ticket_service import generate_ticket_reference, generate_qr_code_base64, create_pdf_ticket
 from services.payment_service import process_simulated_payment
 import io
+import os
 
 public_bp = Blueprint('public', __name__)
 
@@ -46,8 +47,24 @@ def purchase_ticket():
                 db.session.commit()
             except Exception as dberr2:
                 db.session.rollback()
-                print(f"[PURCHASE DB ERROR] {dberr2}")
-                return jsonify({'error': f'Erreur enregistrement base de données: {str(dberr2)}'}), 500
+                print(f"[PURCHASE DB ERROR] {dberr2}. Triggering SQLite fallback...")
+                try:
+                    sqlite_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instances'))
+                    os.makedirs(sqlite_dir, exist_ok=True)
+                    sqlite_path = os.path.join(sqlite_dir, 'award.db')
+                    from sqlalchemy import create_engine
+                    from sqlalchemy.orm import sessionmaker
+                    engine = create_engine(f"sqlite:///{sqlite_path}")
+                    Ticket.metadata.create_all(engine)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+                    session.add(ticket)
+                    session.commit()
+                    session.close()
+                    print("[PURCHASE FALLBACK SUCCESS] Ticket enregistré en secours SQLite.")
+                except Exception as sqle:
+                    print(f"[PURCHASE FALLBACK ERROR] {sqle}")
+                    return jsonify({'error': f'Erreur enregistrement base de données: {str(dberr2)}'}), 500
 
         return jsonify({
             'message': 'Commande de billet enregistrée. Veuillez procéder au paiement.',

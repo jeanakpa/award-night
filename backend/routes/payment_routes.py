@@ -15,7 +15,27 @@ def initiate_jeko_payment():
         if not reference:
             return jsonify({'error': 'Référence du billet requise.'}), 400
 
-        ticket = Ticket.query.filter_by(reference=reference).first()
+        ticket = None
+        try:
+            ticket = Ticket.query.filter_by(reference=reference).first()
+        except Exception as dbe:
+            print(f"[INITIATE DB ERROR] {dbe}. Trying SQLite fallback...")
+            db.session.rollback()
+
+        if not ticket:
+            import os
+            try:
+                sqlite_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instances', 'award.db'))
+                if os.path.exists(sqlite_path):
+                    from sqlalchemy import create_engine
+                    from sqlalchemy.orm import sessionmaker
+                    engine = create_engine(f"sqlite:///{sqlite_path}")
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+                    ticket = session.query(Ticket).filter_by(reference=reference).first()
+            except Exception as sqle:
+                print(f"[INITIATE SQLITE ERROR] {sqle}")
+
         if not ticket:
             return jsonify({'error': 'Billet non trouvé.'}), 404
 

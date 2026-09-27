@@ -71,8 +71,14 @@ export default function PurchasePage({ onBack, onOrderCreated }) {
       }
     } catch (err) {
       console.error("Purchase error details:", err);
-      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
-      setError(`Erreur: ${serverMsg}. Veuillez réessayer.`);
+      let serverMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Erreur réseau';
+      if (typeof serverMsg !== 'string') {
+        serverMsg = JSON.stringify(serverMsg);
+      }
+      if (serverMsg.includes('did not match the expected pattern') || serverMsg.includes('Network Error')) {
+        serverMsg = 'Problème de connexion temporaire';
+      }
+      setError(`${serverMsg}. Veuillez réessayer.`);
     } finally {
       setLoading(false);
     }

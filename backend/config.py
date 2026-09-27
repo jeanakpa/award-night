@@ -33,8 +33,17 @@ class Config:
     POSTGRES_DB = os.getenv('POSTGRES_DB', 'award')
     
     raw_db_url = os.getenv('DATABASE_URL')
-    if raw_db_url and raw_db_url.startswith('postgres://'):
-        raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
+    if raw_db_url:
+        if raw_db_url.startswith('postgres://'):
+            raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
+        # Transform Render internal short hostnames (dpg-xxxx-a) to full external resolvable hostnames
+        import re
+        if re.search(r'@dpg-[a-z0-9-]+(?::\d+)?/', raw_db_url):
+            raw_db_url = re.sub(
+                r'@(dpg-[a-z0-9-]+)(:\d+)?/',
+                r'@\1.frankfurt-postgres.render.com\2/',
+                raw_db_url
+            )
 
     SQLALCHEMY_DATABASE_URI = raw_db_url or (
         f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@"

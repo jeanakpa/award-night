@@ -36,12 +36,11 @@ class Config:
     if raw_db_url:
         if raw_db_url.startswith('postgres://'):
             raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
-        # Transform Render internal short hostnames (dpg-xxxx-a) to full external resolvable hostnames
-        import re
-        if re.search(r'@dpg-[a-z0-9-]+(?::\d+)?/', raw_db_url):
+        if '@dpg-' in raw_db_url and '.render.com' not in raw_db_url:
+            import re
             raw_db_url = re.sub(
-                r'@(dpg-[a-z0-9-]+)(:\d+)?/',
-                r'@\1.frankfurt-postgres.render.com\2/',
+                r'@(dpg-[a-zA-Z0-9-]+)',
+                r'@\1.frankfurt-postgres.render.com',
                 raw_db_url
             )
 

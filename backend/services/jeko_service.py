@@ -7,8 +7,8 @@ from services.ticket_service import generate_qr_code_base64, send_ticket_email, 
 from utils.helpers import get_lan_ip, extract_request_network_ip
 
 def get_jeko_headers():
-    api_key = current_app.config.get('JEKO_API_KEY', 'jeko_dd65e38653d0eab55cf33072706483c5acebf3f01a419ccd91b76dc9df3dff3d')
-    api_key_id = current_app.config.get('JEKO_API_KEY_ID', '0bff701f-5c83-438e-972a-5c8374ca5c86')
+    api_key = current_app.config.get('JEKO_API_KEY') or os.environ.get('JEKO_API_KEY') or 'jeko_dd65e38653d0eab55cf33072706483c5acebf3f01a419ccd91b76dc9df3dff3d'
+    api_key_id = current_app.config.get('JEKO_API_KEY_ID') or os.environ.get('JEKO_API_KEY_ID') or '0bff701f-5c83-438e-972a-5c8374ca5c86'
     return {
         "X-API-KEY": api_key,
         "X-API-KEY-ID": api_key_id,

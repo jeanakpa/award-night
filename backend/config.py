@@ -53,10 +53,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Jeko API Configuration
-    JEKO_API_KEY = os.getenv('JEKO_API_KEY')
-    JEKO_API_KEY_ID = os.getenv('JEKO_API_KEY_ID')
+    JEKO_API_KEY = os.getenv('JEKO_API_KEY') or 'jeko_dd65e38653d0eab55cf33072706483c5acebf3f01a419ccd91b76dc9df3dff3d'
+    JEKO_API_KEY_ID = os.getenv('JEKO_API_KEY_ID') or '0bff701f-5c83-438e-972a-5c8374ca5c86'
     JEKO_BASE_URL = os.getenv('JEKO_BASE_URL', 'https://api.jeko.africa/partner_api')
-    JEKO_STORE_ID = os.getenv('JEKO_STORE_ID')
+    JEKO_STORE_ID = os.getenv('JEKO_STORE_ID') or '51b418c3-f19d-4d95-93a8-e40bf034d99a'
     JEKO_DOC_URL = os.getenv('JEKO_DOC_URL', 'https://developer.jeko.africa/')
 
     # SMTP Configuration

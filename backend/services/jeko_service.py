@@ -70,7 +70,7 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
     Returns dict with success status, redirectUrl, and transaction id.
     """
     # Reuse existing valid Jeko checkout URL if present on ticket and points to a real Jeko UUID checkout
-    if ticket.redirect_url and ticket.redirect_url.startswith('https://pay.jeko.africa/pr/') and len(ticket.redirect_url) > 40 and not ticket.redirect_url.endswith(f"/pr/{ticket.reference}"):
+    if ticket.redirect_url and ticket.redirect_url.startswith('https://pay.jeko.africa/pr/') and len(ticket.redirect_url) > 40:
         return {
             "success": True,
             "jeko_payment_id": ticket.jeko_payment_id,
@@ -96,7 +96,6 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
     }
     jeko_method = method_map.get(payment_method.lower(), 'wave')
 
-    # Always generate unique reference for Jeko API call using timestamp to avoid 409 conflicts
     jeko_ref = f"{ticket.reference}-{int(time.time())}"
 
     payload = {
@@ -114,6 +113,7 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
         }
     }
 
+    response = None
     try:
         response = requests.post(
             f"{base_url}/payment_requests",
@@ -121,24 +121,24 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
             json=payload,
             timeout=15
         )
+    except Exception as req_err:
+        print(f"[JEKO HTTP REQUEST ERROR] {req_err}")
+        return {
+            "success": False,
+            "error": f"Erreur de connexion Jèko: {str(req_err)}",
+            "message": "Impossible d'atteindre Jèko."
+        }
 
+    if response is not None and response.status_code in (200, 201):
         try:
-            log_payload = json.dumps({'request': payload, 'response_code': response.status_code, 'response_body': response.text})
-            log = PaymentLog(ticket_id=ticket.id, operator='jeko', status='INIT', raw_payload=log_payload)
-            db.session.add(log)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        if response.status_code in (200, 201):
             data = response.json()
             payment_id = data.get('id')
             redirect_url = data.get('redirectUrl') or data.get('checkoutUrl') or f"https://pay.jeko.africa/pr/{payment_id}"
 
-            ticket.jeko_payment_id = payment_id
-            ticket.redirect_url = redirect_url
-            ticket.payment_method = f"jeko-{jeko_method}"
             try:
+                ticket.jeko_payment_id = payment_id
+                ticket.redirect_url = redirect_url
+                ticket.payment_method = f"jeko-{jeko_method}"
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -149,14 +149,13 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
                 "redirect_url": redirect_url,
                 "message": "Paiement Jèko initialisé avec succès."
             }
-        print(f"[JEKO ERROR] Status {response.status_code}: {response.text}")
-    except Exception as e:
-        print(f"[JEKO EXCEPTION] {e}")
+        except Exception as parse_err:
+            print(f"[JEKO PARSE ERROR] {parse_err}")
 
-    # If Jeko API fails, return error to frontend instead of skipping payment!
+    print(f"[JEKO API ERROR] Status {response.status_code if response else 'None'}: {response.text if response else ''}")
     return {
         "success": False,
-        "error": "Impossible d'initialiser le paiement Jèko pour le moment. Veuillez réessayer.",
+        "error": "Impossible d'initialiser le paiement Jèko. Veuillez réessayer.",
         "message": "Échec d'initialisation du paiement."
     }
 

@@ -10,6 +10,10 @@ export default function SuccessPage({ ticket, onGoHome }) {
     window.open(pdfDownloadUrl, '_blank');
   };
 
+  const qrSrc = ticket?.qr_code_data
+    ? (ticket.qr_code_data.startsWith('data:') ? ticket.qr_code_data : `data:image/png;base64,${ticket.qr_code_data}`)
+    : (reference ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://openyourheart-bethesda.ci/verify/${reference}` : null);
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-b from-[#070E1B] via-[#0D1E3A] to-[#070E1B] text-white py-8 px-4 sm:px-6 flex flex-col justify-center items-center">
       <div className="max-w-md w-full space-y-5 text-center my-auto">
@@ -83,12 +87,12 @@ export default function SuccessPage({ ticket, onGoHome }) {
             </div>
 
             {/* QR Code Section */}
-            {ticket.qr_code_data && (
+            {qrSrc && (
               <div className="pt-3 border-t border-[#183157] text-center space-y-2">
                 <div className="bg-white p-3 rounded-2xl inline-block shadow-lg mx-auto">
                   <img
-                    src={`data:image/png;base64,${ticket.qr_code_data}`}
-                    alt={`QR Code ${ticket.reference}`}
+                    src={qrSrc}
+                    alt={`QR Code ${reference}`}
                     className="w-32 h-32 sm:w-36 sm:h-36 object-contain mx-auto"
                   />
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, User, Phone, Mail, Ticket, ArrowRight, ShieldCheck, RefreshCw, CreditCard } from 'lucide-react';
-import { API_BASE_URL } from '../api';
+import api from '../api';
 
 export default function PurchasePage({ onBack, onOrderCreated }) {
   const [formData, setFormData] = useState({
@@ -39,50 +39,40 @@ export default function PurchasePage({ onBack, onOrderCreated }) {
 
     try {
       // 1. Create ticket order on backend
-      const purchaseRes = await fetch(`${API_BASE_URL}/tickets/purchase`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          buyer_name: formData.buyer_name,
-          buyer_phone: formData.buyer_phone,
-          buyer_whatsapp: formData.buyer_phone,
-          buyer_email: formData.buyer_email,
-          quantity: formData.quantity
-        })
+      const purchaseRes = await api.post('/tickets/purchase', {
+        buyer_name: formData.buyer_name,
+        buyer_phone: formData.buyer_phone,
+        buyer_whatsapp: formData.buyer_phone,
+        buyer_email: formData.buyer_email,
+        quantity: formData.quantity
       });
 
-      const purchaseData = await purchaseRes.json();
-
-      if (!purchaseRes.ok) {
-        setError(purchaseData.error || 'Erreur lors de la réservation du ticket.');
+      const ticket = purchaseRes.data?.ticket;
+      if (!ticket) {
+        setError('Erreur lors de la création du ticket.');
         setLoading(false);
         return;
       }
 
-      const ticket = purchaseData.ticket;
-
       // 2. Initiate Jeko Payment to obtain checkout URL for chosen operator
-      const jekoRes = await fetch(`${API_BASE_URL}/payments/jeko-initiate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reference: ticket.reference,
-          operator: selectedOperator
-        })
+      const jekoRes = await api.post('/payments/jeko-initiate', {
+        reference: ticket.reference,
+        operator: selectedOperator
       });
 
-      const jekoData = await jekoRes.json();
+      const jekoData = jekoRes.data;
 
-      if (jekoRes.ok && jekoData.success && jekoData.redirect_url) {
+      if (jekoData && jekoData.success && jekoData.redirect_url) {
         // ALWAYS redirect directly to Jeko Payment Platform checkout page
         window.location.href = jekoData.redirect_url;
       } else {
-        setError(jekoData.error || jekoData.message || 'Échec d\'initialisation du paiement Jèko.');
+        setError(jekoData?.error || jekoData?.message || 'Échec d\'initialisation du paiement Jèko.');
         setLoading(false);
       }
     } catch (err) {
       console.error("Purchase error details:", err);
-      setError(`Erreur réseau (${err.message || 'serveur inaccessible'}). Veuillez réessayer.`);
+      const serverMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      setError(`Erreur: ${serverMsg}. Veuillez réessayer.`);
     } finally {
       setLoading(false);
     }

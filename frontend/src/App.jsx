@@ -6,6 +6,7 @@ import TicketViewModal from './components/TicketViewModal';
 import AdminDashboard from './components/AdminDashboard';
 import { AppProvider, useApp } from './context/AppContext';
 import { Ticket, Play } from 'lucide-react';
+import api from './api';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('home'); // 'home' | 'purchase' | 'success'
@@ -28,11 +29,10 @@ function AppContent() {
     if (pageParam === 'success' || paymentStatus === 'success') {
       setCurrentPage('success');
       if (ref) {
-        fetch(`/api/tickets/lookup/${ref}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.success && data.ticket) {
-              setCurrentTicket(data.ticket);
+        api.get(`/tickets/lookup/${ref}`)
+          .then(res => {
+            if (res.data?.success && res.data?.ticket) {
+              setCurrentTicket(res.data.ticket);
             }
           })
           .catch(err => console.error(err));

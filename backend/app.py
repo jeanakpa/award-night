@@ -81,9 +81,7 @@ def create_app():
         # Seed default admin user safely from environment
         try:
             admin_user = os.getenv('ADMIN_USERNAME', 'admin')
-            admin_pass = os.getenv('ADMIN_PASSWORD')
-            if not admin_pass and app.config.get('FLASK_ENV') != 'production':
-                admin_pass = 'admin123'
+            admin_pass = os.getenv('ADMIN_PASSWORD', 'admin123')
 
             if admin_pass:
                 admin = AdminUser.query.filter_by(username=admin_user).first()
@@ -93,6 +91,10 @@ def create_app():
                     db.session.add(admin)
                     db.session.commit()
                     print(f"[ADMIN LOG] Compte administrateur '{admin_user}' créé avec succès.")
+                else:
+                    admin.set_password(admin_pass)
+                    db.session.commit()
+                    print(f"[ADMIN LOG] Mot de passe administrateur '{admin_user}' mis à jour.")
         except Exception as e:
             db.session.rollback()
             print(f"[ADMIN LOG] Admin seed note: {e}")

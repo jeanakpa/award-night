@@ -191,25 +191,26 @@ def verify_jeko_payment(ticket_reference, jeko_payment_id=None):
     return confirm_ticket_payment(ticket, target_id or f"TXN-JEKO-{ticket.reference}")
 
 def confirm_ticket_payment(ticket, transaction_ref):
-    """Confirms payment, generates QR code, and dispatches email."""
+    """Confirms payment and generates QR code."""
     ticket.payment_status = 'SUCCESS'
     ticket.transaction_ref = transaction_ref
     
     verify_url = f"https://openyourheart-bethesda.ci/verify/{ticket.reference}"
     ticket.qr_code_data = generate_qr_code_base64(verify_url)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
-    # Dispatch email & WhatsApp notification
     ticket_dict = ticket.to_dict()
-    email_sent, msg = send_ticket_email(ticket_dict, ticket.qr_code_data)
-    if email_sent:
-        ticket.email_sent = True
-    
-    send_whatsapp_notification(ticket_dict, sender_number="+2250708729293")
-    db.session.commit()
+
+    try:
+        send_whatsapp_notification(ticket_dict, sender_number="+2250708729293")
+    except Exception as e:
+        print(f"[WHATSAPP LOG] {e}")
 
     return {
         "success": True,
         "message": "Paiement validé avec succès !",
-        "ticket": ticket.to_dict()
+        "ticket": ticket_dict
     }

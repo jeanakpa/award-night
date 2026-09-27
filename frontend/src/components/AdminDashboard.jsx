@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Shield, Lock, Search, Filter, Download, Mail, CheckCircle, Clock, Smartphone, TrendingUp, Users, DollarSign, Camera, LogOut, RefreshCw } from 'lucide-react';
 import QrScanner from './QrScanner';
+import api, { API_BASE_URL } from '../api';
 
 export default function AdminDashboard({ isOpen, onClose }) {
   const [token, setToken] = useState(localStorage.getItem('admin_token') || '');
@@ -32,20 +33,17 @@ export default function AdminDashboard({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setToken(data.token);
-        localStorage.setItem('admin_token', data.token);
+      const res = await api.post('/admin/login', credentials);
+      if (res.data?.token) {
+        setToken(res.data.token);
+        localStorage.setItem('admin_token', res.data.token);
       } else {
-        setLoginError(data.error || 'Identifiants invalides.');
+        setLoginError('Identifiants invalides.');
       }
     } catch (err) {
-      setLoginError('Erreur de connexion serveur.');
+      console.error("Admin login error:", err);
+      const msg = err.response?.data?.error || 'Erreur de connexion serveur.';
+      setLoginError(msg);
     } finally {
       setLoading(false);
     }
@@ -59,12 +57,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
   // Fetch Dashboard Stats
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
+      const res = await api.get('/admin/stats');
+      if (res.data) {
+        setStats(res.data);
       }
     } catch (err) {
       console.log('Error fetching stats:', err);
@@ -80,12 +75,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
         operator: operatorFilter
       }).toString();
 
-      const res = await fetch(`/api/admin/tickets?${query}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTickets(data);
+      const res = await api.get(`/admin/tickets?${query}`);
+      if (res.data) {
+        setTickets(res.data);
       }
     } catch (err) {
       console.log('Error fetching tickets:', err);
@@ -96,25 +88,20 @@ export default function AdminDashboard({ isOpen, onClose }) {
   const handleResendEmail = async (ticketId) => {
     setActionMessage('');
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/resend-email`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const res = await api.post(`/admin/tickets/${ticketId}/resend-email`);
+      if (res.data) {
         setActionMessage('✅ Email renvoyé avec succès !');
         fetchTickets();
-      } else {
-        setActionMessage(`❌ Erreur: ${data.error}`);
       }
     } catch (err) {
-      setActionMessage('❌ Échec d\'envoi email.');
+      const msg = err.response?.data?.error || "Échec d'envoi email.";
+      setActionMessage(`❌ Erreur: ${msg}`);
     }
   };
 
   // Export CSV
   const handleExportCsv = () => {
-    window.open('/api/admin/tickets/export', '_blank');
+    window.open(`${API_BASE_URL}/admin/tickets/export`, '_blank');
   };
 
   return (

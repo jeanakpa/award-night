@@ -43,6 +43,8 @@ class Config:
                 r'@\1.frankfurt-postgres.render.com',
                 raw_db_url
             )
+        if 'sslmode=' not in raw_db_url and 'sqlite' not in raw_db_url:
+            raw_db_url += '?sslmode=require' if '?' not in raw_db_url else '&sslmode=require'
 
     SQLALCHEMY_DATABASE_URI = raw_db_url or (
         f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@"

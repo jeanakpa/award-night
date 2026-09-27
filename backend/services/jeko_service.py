@@ -130,27 +130,25 @@ def create_jeko_payment_request(ticket, payment_method='wave', host_url=None):
         }
 
     if response is not None and response.status_code in (200, 201):
+        data = response.json()
+        payment_id = data.get('id')
+        redirect_url = data.get('redirectUrl') or data.get('checkoutUrl') or f"https://pay.jeko.africa/pr/{payment_id}"
+
         try:
-            data = response.json()
-            payment_id = data.get('id')
-            redirect_url = data.get('redirectUrl') or data.get('checkoutUrl') or f"https://pay.jeko.africa/pr/{payment_id}"
+            ticket.jeko_payment_id = payment_id
+            ticket.redirect_url = redirect_url
+            ticket.payment_method = f"jeko-{jeko_method}"
+            db.session.commit()
+        except Exception as dberr:
+            print(f"[JEKO DB SAVE LOG] {dberr}")
+            db.session.rollback()
 
-            try:
-                ticket.jeko_payment_id = payment_id
-                ticket.redirect_url = redirect_url
-                ticket.payment_method = f"jeko-{jeko_method}"
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-            return {
-                "success": True,
-                "jeko_payment_id": payment_id,
-                "redirect_url": redirect_url,
-                "message": "Paiement Jèko initialisé avec succès."
-            }
-        except Exception as parse_err:
-            print(f"[JEKO PARSE ERROR] {parse_err}")
+        return {
+            "success": True,
+            "jeko_payment_id": payment_id,
+            "redirect_url": redirect_url,
+            "message": "Paiement Jèko initialisé avec succès."
+        }
 
     print(f"[JEKO API ERROR] Status {response.status_code if response else 'None'}: {response.text if response else ''}")
     return {

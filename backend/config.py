@@ -20,8 +20,9 @@ class Config:
             raise ValueError("CRITICAL SECURITY RISK: 'JWT_SECRET_KEY' must be set in production environment variables!")
         JWT_SECRET_KEY = 'dev_jwt_secret_key_bethesda_niangon_2026'
 
-    # Frontend Domain / URL & CORS
-    FRONTEND_URL = os.getenv('FRONTEND_URL', '').rstrip('/')
+    # Frontend & Backend Domain / URLs & CORS
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://award-frontend.onrender.com').rstrip('/')
+    BACKEND_URL = os.getenv('BACKEND_URL', 'https://award-backend-wnze.onrender.com').rstrip('/')
     CORS_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', '*').split(',') if origin.strip()]
 
     # Database Configuration

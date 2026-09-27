@@ -19,6 +19,10 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: BACKEND_URL
+        value: https://award-backend-wnze.onrender.com
+      - key: FRONTEND_URL
+        value: https://award-frontend.onrender.com
 
   # 2. Frontend React Static Site
   - type: web

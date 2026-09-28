@@ -24,6 +24,10 @@ def purchase_ticket():
         total_amount = unit_price * quantity
         reference = generate_ticket_reference()
 
+        # Pre-generate QR code data for fast rendering & instant PDF download
+        verify_url = f"https://openyourheart-bethesda.ci/verify/{reference}"
+        qr_code_data = generate_qr_code_base64(verify_url)
+
         ticket = Ticket(
             reference=reference,
             buyer_name=buyer_name,
@@ -33,57 +37,22 @@ def purchase_ticket():
             quantity=quantity,
             unit_price=unit_price,
             total_amount=total_amount,
-            payment_status='PENDING'
+            payment_status='PENDING',
+            qr_code_data=qr_code_data
         )
 
-        ticket_dict = None
         try:
             db.session.add(ticket)
             db.session.commit()
-            ticket_dict = ticket.to_dict()
         except Exception as dberr:
             db.session.rollback()
-            try:
-                db.create_all()
-                db.session.add(ticket)
-                db.session.commit()
-                ticket_dict = ticket.to_dict()
-            except Exception as dberr2:
-                db.session.rollback()
-                print(f"[PURCHASE DB ERROR] {dberr2}. Triggering SQLite fallback...")
-                try:
-                    sqlite_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'instances'))
-                    os.makedirs(sqlite_dir, exist_ok=True)
-                    sqlite_path = os.path.join(sqlite_dir, 'award.db')
-                    from sqlalchemy import create_engine
-                    from sqlalchemy.orm import sessionmaker
-                    engine = create_engine(f"sqlite:///{sqlite_path}")
-                    Ticket.metadata.create_all(engine)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
-                    session.add(ticket)
-                    session.commit()
-                    ticket_dict = ticket.to_dict()
-                    session.close()
-                    print("[PURCHASE FALLBACK SUCCESS] Ticket enregistré en secours SQLite.")
-                except Exception as sqle:
-                    print(f"[PURCHASE FALLBACK ERROR] {sqle}")
-                    ticket_dict = {
-                        'id': 1,
-                        'reference': ticket.reference,
-                        'buyer_name': ticket.buyer_name,
-                        'buyer_phone': ticket.buyer_phone,
-                        'buyer_whatsapp': ticket.buyer_whatsapp,
-                        'buyer_email': ticket.buyer_email,
-                        'quantity': ticket.quantity,
-                        'unit_price': ticket.unit_price,
-                        'total_amount': ticket.total_amount,
-                        'payment_status': ticket.payment_status
-                    }
+            db.create_all()
+            db.session.add(ticket)
+            db.session.commit()
 
         return jsonify({
             'message': 'Commande de billet enregistrée. Veuillez procéder au paiement.',
-            'ticket': ticket_dict
+            'ticket': ticket.to_dict()
         }), 201
     except Exception as general_err:
         print(f"[PURCHASE GENERAL ERROR] {general_err}")
@@ -134,6 +103,7 @@ def verify_ticket(reference):
 
 @public_bp.route('/api/tickets/<reference>/pdf', methods=['GET'])
 def download_ticket_pdf(reference):
+    from flask import make_response
     ticket = Ticket.query.filter_by(reference=reference).first()
     if not ticket:
         return jsonify({'error': 'Ticket non trouvé.'}), 404
@@ -141,11 +111,11 @@ def download_ticket_pdf(reference):
     if not ticket.qr_code_data:
         verify_url = f"https://openyourheart-bethesda.ci/verify/{ticket.reference}"
         ticket.qr_code_data = generate_qr_code_base64(verify_url)
+        db.session.commit()
 
     pdf_bytes = create_pdf_ticket(ticket.to_dict(), ticket.qr_code_data)
-    return send_file(
-        io.BytesIO(pdf_bytes),
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f"Ticket_{ticket.reference}.pdf"
-    )
+    response = make_response(pdf_bytes)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename="Ticket_{ticket.reference}.pdf"'
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response

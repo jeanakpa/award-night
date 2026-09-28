@@ -1,13 +1,32 @@
-import React from 'react';
-import { CheckCircle2, Home, Download, FileText, Ticket, QrCode, Sparkles, Calendar, MapPin, User, Hash } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Home, Download, FileText, Ticket, QrCode, Sparkles, Calendar, MapPin, User, Hash, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '../api';
 
 export default function SuccessPage({ ticket, onGoHome }) {
+  const [downloading, setDownloading] = useState(false);
   const reference = ticket?.reference || 'AWN-2026';
   const pdfDownloadUrl = `${API_BASE_URL}/tickets/${reference}/pdf`;
 
-  const handleDownloadPdf = () => {
-    window.open(pdfDownloadUrl, '_blank');
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const response = await fetch(pdfDownloadUrl);
+      if (!response.ok) throw new Error('Téléchargement impossible');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Ticket_${reference}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Blob download fallback:", err);
+      window.open(pdfDownloadUrl, '_blank');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const qrSrc = ticket?.qr_code_data
@@ -108,10 +127,20 @@ export default function SuccessPage({ ticket, onGoHome }) {
         <div className="space-y-3 pt-1">
           <button
             onClick={handleDownloadPdf}
-            className="w-full py-4 bg-gradient-to-r from-[#FF5500] to-[#FF7700] hover:from-[#FF661A] hover:to-[#FF8800] active:scale-95 text-white font-extrabold text-base rounded-2xl shadow-[0_8px_25px_rgba(255,85,0,0.5)] transition-all border border-white/20 flex items-center justify-center gap-2.5 cursor-pointer"
+            disabled={downloading}
+            className="w-full py-4 bg-gradient-to-r from-[#FF5500] to-[#FF7700] hover:from-[#FF661A] hover:to-[#FF8800] active:scale-95 text-white font-extrabold text-base rounded-2xl shadow-[0_8px_25px_rgba(255,85,0,0.5)] transition-all border border-white/20 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-80"
           >
-            <Download className="w-5 h-5" />
-            <span>Télécharger le Billet (PDF)</span>
+            {downloading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>Téléchargement en cours...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                <span>Télécharger le Billet (PDF)</span>
+              </>
+            )}
           </button>
 
           <button

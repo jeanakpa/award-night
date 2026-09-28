@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Shield, Lock, Search, Filter, Download, Mail, CheckCircle, 
   Clock, Smartphone, TrendingUp, Users, DollarSign, Camera, LogOut, 
-  RefreshCw, Eye, QrCode, AlertCircle, ArrowUpRight, Check, XCircle, FileText
+  RefreshCw, Eye, QrCode, AlertCircle, ArrowUpRight, Check, XCircle, Pencil, Trash2, Edit3
 } from 'lucide-react';
 import QrScanner from './QrScanner';
 import api, { API_BASE_URL } from '../api';
@@ -21,8 +21,11 @@ export default function AdminDashboard({ isOpen, onClose }) {
   const [operatorFilter, setOperatorFilter] = useState('');
   const [actionMessage, setActionMessage] = useState('');
 
-  // Selected ticket for QR Code image preview modal
+  // Selected ticket for QR Code preview modal
   const [previewQrTicket, setPreviewQrTicket] = useState(null);
+
+  // Selected ticket for Edit modal
+  const [editingTicket, setEditingTicket] = useState(null);
 
   useEffect(() => {
     if (token && isOpen) {
@@ -126,6 +129,44 @@ export default function AdminDashboard({ isOpen, onClose }) {
     }
   };
 
+  // Delete Ticket
+  const handleDeleteTicket = async (ticket) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le billet ${ticket.reference} (${ticket.buyer_name}) ?`)) {
+      return;
+    }
+    setActionMessage('');
+    try {
+      const res = await api.delete(`/admin/tickets/${ticket.id}`);
+      if (res.data?.success) {
+        setActionMessage(`✅ ${res.data.message}`);
+        fetchTickets();
+        fetchStats();
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Erreur lors de la suppression.";
+      setActionMessage(`❌ ${msg}`);
+    }
+  };
+
+  // Save Edit Ticket Form
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingTicket) return;
+    setActionMessage('');
+    try {
+      const res = await api.put(`/admin/tickets/${editingTicket.id}`, editingTicket);
+      if (res.data?.success) {
+        setActionMessage(`✅ ${res.data.message}`);
+        setEditingTicket(null);
+        fetchTickets();
+        fetchStats();
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Erreur de mise à jour.";
+      setActionMessage(`❌ ${msg}`);
+    }
+  };
+
   // Resend Ticket Email
   const handleResendEmail = async (ticketId) => {
     setActionMessage('');
@@ -141,7 +182,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
     }
   };
 
-  // Export CSV (Safe blob download with auth header)
+  // Export CSV (Safe blob download with UTF-8 BOM)
   const handleExportCsv = async () => {
     try {
       const res = await api.get('/admin/tickets/export', { responseType: 'blob' });
@@ -156,15 +197,26 @@ export default function AdminDashboard({ isOpen, onClose }) {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export CSV error:", err);
-      // Fallback with token in URL parameter
       window.open(`${API_BASE_URL}/admin/tickets/export?token=${token}`, '_blank');
     }
+  };
+
+  // Format payment method display label
+  const formatPaymentMethod = (method) => {
+    if (!method) return 'Jèko';
+    const m = method.toLowerCase();
+    if (m.includes('wave')) return 'Wave (via Jèko)';
+    if (m.includes('mtn')) return 'MTN Money (via Jèko)';
+    if (m.includes('orange')) return 'Orange Money (via Jèko)';
+    if (m.includes('moov')) return 'Moov Money (via Jèko)';
+    if (m.includes('kkiapay')) return 'KKiaPay / Carte';
+    return `${method.toUpperCase()} (via Jèko)`;
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-100 text-slate-800 w-full min-h-screen flex flex-col font-sans animate-fadeIn">
       
-      {/* 1. TOP NAVIGATION HEADER (Fully Responsive) */}
+      {/* 1. TOP NAVIGATION HEADER */}
       <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
@@ -178,7 +230,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
               </span>
             </h1>
             <p className="text-[11px] text-slate-500 hidden sm:block">
-              Gestion des billets, suivi des encaissements & contrôle des entrées
+              Gestion des billets, encaissements Jèko & contrôle des entrées
             </p>
           </div>
         </div>
@@ -215,7 +267,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
         </div>
       </header>
 
-      {/* 2. LOGIN SCREEN FOR UNAUTHENTICATED USERS */}
+      {/* 2. LOGIN SCREEN */}
       {!token ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8 space-y-6">
@@ -282,26 +334,29 @@ export default function AdminDashboard({ isOpen, onClose }) {
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               
+              {/* Recettes Totales (Success Payments) */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Recettes Total</span>
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Recettes Totales</span>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
-                  {stats.total_revenue?.toLocaleString('fr-FR')} F
+                  {stats.total_revenue ? stats.total_revenue.toLocaleString('fr-FR').replace(/,/g, ' ') : '0'} F
                 </span>
                 <span className="text-[10px] sm:text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3 shrink-0" /> Paiements valides
+                  <CheckCircle className="w-3.5 h-3.5 shrink-0" /> Paiements confirmés
                 </span>
               </div>
 
+              {/* Inscrits Total */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
                 <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Inscrits Total</span>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
                   {tickets.length} Billet{tickets.length > 1 ? 's' : ''}
                 </span>
                 <span className="text-[10px] sm:text-[11px] text-amber-600 font-bold flex items-center gap-1">
-                  <Clock className="w-3 h-3 shrink-0" /> {stats.pending_count || 0} En attente
+                  <Clock className="w-3.5 h-3.5 shrink-0" /> {stats.pending_count || 0} En attente
                 </span>
               </div>
 
+              {/* Présence Gala */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
                 <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Présence Gala</span>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
@@ -312,13 +367,14 @@ export default function AdminDashboard({ isOpen, onClose }) {
                 </span>
               </div>
 
+              {/* Opérateurs Aggregateur Jèko */}
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between col-span-2 lg:col-span-1">
-                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Opérateurs</span>
-                <div className="text-[11px] grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 font-semibold text-slate-600">
-                  <div>🌊 Wave: <b className="text-slate-900">{stats.operator_stats?.wave?.count || 0}</b></div>
-                  <div>🟡 MTN: <b className="text-slate-900">{stats.operator_stats?.mtn?.count || 0}</b></div>
-                  <div>🟠 Orange: <b className="text-slate-900">{stats.operator_stats?.orange?.count || 0}</b></div>
-                  <div>💳 Autre: <b className="text-slate-900">{(stats.operator_stats?.kkiapay?.count || 0) + (stats.operator_stats?.moov?.count || 0)}</b></div>
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Opérateurs (via Jèko)</span>
+                <div className="text-[11px] grid grid-cols-2 gap-x-2 gap-y-1 pt-1 font-semibold text-slate-700">
+                  <div className="flex items-center gap-1">🌊 Wave: <b className="text-slate-900 ml-auto">{stats.operator_stats?.wave || 0}</b></div>
+                  <div className="flex items-center gap-1">🟡 MTN: <b className="text-slate-900 ml-auto">{stats.operator_stats?.mtn || 0}</b></div>
+                  <div className="flex items-center gap-1">🟠 Orange: <b className="text-slate-900 ml-auto">{stats.operator_stats?.orange || 0}</b></div>
+                  <div className="flex items-center gap-1">💳 Autre: <b className="text-slate-900 ml-auto">{(stats.operator_stats?.kkiapay || 0) + (stats.operator_stats?.moov || 0) + (stats.operator_stats?.other || 0)}</b></div>
                 </div>
               </div>
 
@@ -326,7 +382,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
           )}
 
           {actionMessage && (
-            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-xs">
               <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
               <span>{actionMessage}</span>
             </div>
@@ -362,13 +418,13 @@ export default function AdminDashboard({ isOpen, onClose }) {
               </button>
             </div>
 
-            {/* Export CSV Action (Direct Blob API Call) */}
+            {/* Export CSV Action (UTF-8 BOM with formatted phone text) */}
             <button
               onClick={handleExportCsv}
               className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs shrink-0"
             >
               <Download className="w-4 h-4" />
-              <span>Exporter en CSV</span>
+              <span>Exporter la liste en CSV (UTF-8)</span>
             </button>
           </div>
 
@@ -401,9 +457,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
                   className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-xs"
                 >
                   <option value="">Tous les Statuts de Paiement</option>
-                  <option value="SUCCESS">Paiements Confirmés (SUCCESS)</option>
-                  <option value="PENDING">En Attente de Paiement (PENDING)</option>
-                  <option value="FAILED">Échoués (FAILED)</option>
+                  <option value="SUCCESS">Succès</option>
+                  <option value="PENDING">En attente</option>
+                  <option value="FAILED">Échoué</option>
                 </select>
 
                 {/* Operator Filter */}
@@ -413,10 +469,10 @@ export default function AdminDashboard({ isOpen, onClose }) {
                   className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-xs"
                 >
                   <option value="">Tous les Opérateurs</option>
-                  <option value="wave">Wave CI</option>
-                  <option value="mtn">MTN Money</option>
-                  <option value="orange">Orange Money</option>
-                  <option value="moov">Moov Money</option>
+                  <option value="wave">Wave (via Jèko)</option>
+                  <option value="mtn">MTN Money (via Jèko)</option>
+                  <option value="orange">Orange Money (via Jèko)</option>
+                  <option value="moov">Moov Money (via Jèko)</option>
                   <option value="kkiapay">KKiaPay / Carte</option>
                 </select>
 
@@ -455,41 +511,57 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
                       <div className="text-xs space-y-1">
                         <p className="font-bold text-slate-900 text-sm">{t.buyer_name}</p>
-                        <p className="text-slate-500">Tél : {t.buyer_phone} • WA : {t.buyer_whatsapp}</p>
+                        <p className="text-slate-600 font-medium">Tél Dépôt : <b>{t.buyer_phone}</b> • WA : {t.buyer_whatsapp}</p>
                         <p className="text-slate-500">Email : {t.buyer_email || 'Non renseigné'}</p>
                         <p className="font-extrabold text-slate-900 pt-0.5">
-                          Montant : {t.total_amount?.toLocaleString('fr-FR')} F ({t.payment_method?.toUpperCase()})
+                          {t.total_amount?.toLocaleString('fr-FR')} F ({formatPaymentMethod(t.payment_method)})
                         </p>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                        {/* Status selector */}
+                        
+                        {/* Clean Status Selector (Without icons) */}
                         <select
                           value={t.payment_status}
                           onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-extrabold focus:outline-none border ${
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold focus:outline-none border ${
                             t.payment_status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
                             t.payment_status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-300' :
                             'bg-rose-50 text-rose-700 border-rose-300'
                           }`}
                         >
-                          <option value="SUCCESS">✅ PAYÉ</option>
-                          <option value="PENDING">⏳ PENDING</option>
-                          <option value="FAILED">❌ ÉCHOUÉ</option>
+                          <option value="SUCCESS">Succès</option>
+                          <option value="PENDING">En attente</option>
+                          <option value="FAILED">Échoué</option>
                         </select>
 
-                        {/* Check-in toggle */}
-                        <button
-                          onClick={() => handleToggleCheckin(t.id)}
-                          className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border ${
-                            t.checked_in
-                              ? 'bg-emerald-600 text-white border-emerald-700'
-                              : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
-                        >
-                          {t.checked_in ? <Check className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                          <span>{t.checked_in ? 'Présent' : 'Non scanné'}</span>
-                        </button>
+                        {/* Actions (Edit, Resend, Delete) */}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <button
+                            onClick={() => setEditingTicket(t)}
+                            className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors"
+                            title="Modifier les informations"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleResendEmail(t.id)}
+                            className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg border border-slate-200 transition-colors"
+                            title="Renvoyer l'email"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteTicket(t)}
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg border border-rose-200 transition-colors"
+                            title="Supprimer le ticket"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
                       </div>
 
                     </div>
@@ -507,9 +579,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
                         <th className="py-3.5 px-4">Référence</th>
                         <th className="py-3.5 px-4 text-center">QR Code</th>
                         <th className="py-3.5 px-4">Participant & Email</th>
-                        <th className="py-3.5 px-4">Contact & WA</th>
+                        <th className="py-3.5 px-4">Tél Dépôt & WA</th>
                         <th className="py-3.5 px-4">Montant</th>
-                        <th className="py-3.5 px-4">Opérateur</th>
+                        <th className="py-3.5 px-4">Opérateur (Jèko)</th>
                         <th className="py-3.5 px-4">Statut Paiement</th>
                         <th className="py-3.5 px-4 text-center">Entrée Gala</th>
                         <th className="py-3.5 px-4 text-right">Actions</th>
@@ -560,9 +632,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
                               <div className="text-[11px] text-slate-500">{t.buyer_email || 'Pas d\'email'}</div>
                             </td>
 
-                            {/* Contact & WhatsApp */}
+                            {/* Tél Dépôt & WhatsApp */}
                             <td className="py-3.5 px-4 whitespace-nowrap">
-                              <div className="font-semibold text-slate-800">{t.buyer_phone}</div>
+                              <div className="font-bold text-slate-900">{t.buyer_phone}</div>
                               <div className="text-[10px] text-emerald-600 font-bold">WA: {t.buyer_whatsapp}</div>
                             </td>
 
@@ -573,24 +645,24 @@ export default function AdminDashboard({ isOpen, onClose }) {
                             </td>
 
                             {/* Payment Operator */}
-                            <td className="py-3.5 px-4 uppercase font-bold text-slate-700 whitespace-nowrap">
-                              {t.payment_method || 'N/A'}
+                            <td className="py-3.5 px-4 font-bold text-slate-700 whitespace-nowrap">
+                              {formatPaymentMethod(t.payment_method)}
                             </td>
 
-                            {/* Payment Status Dropdown Selector */}
+                            {/* Clean Payment Status Selector (Without icons) */}
                             <td className="py-3.5 px-4">
                               <select
                                 value={t.payment_status}
                                 onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold focus:outline-none cursor-pointer border ${
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold focus:outline-none cursor-pointer border ${
                                   t.payment_status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
                                   t.payment_status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-300' :
                                   'bg-rose-50 text-rose-700 border-rose-300'
                                 }`}
                               >
-                                <option value="SUCCESS">✅ SUCCESS (Payé)</option>
-                                <option value="PENDING">⏳ PENDING (En attente)</option>
-                                <option value="FAILED">❌ FAILED (Échoué)</option>
+                                <option value="SUCCESS">Succès</option>
+                                <option value="PENDING">En attente</option>
+                                <option value="FAILED">Échoué</option>
                               </select>
                             </td>
 
@@ -619,16 +691,31 @@ export default function AdminDashboard({ isOpen, onClose }) {
                               </button>
                             </td>
 
-                            {/* Actions */}
+                            {/* Actions with Edit & Delete Icons */}
                             <td className="py-3.5 px-4 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
-                                  onClick={() => handleResendEmail(t.id)}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white border border-slate-300 text-slate-700 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors"
-                                  title="Renvoyer le billet par email"
+                                  onClick={() => setEditingTicket(t)}
+                                  className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-colors"
+                                  title="Modifier les détails du ticket"
                                 >
-                                  <Mail className="w-3.5 h-3.5" />
-                                  <span>Email</span>
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleResendEmail(t.id)}
+                                  className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg border border-slate-200 transition-colors"
+                                  title="Renvoyer l'email avec le billet PDF"
+                                >
+                                  <Mail className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteTicket(t)}
+                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg border border-rose-200 transition-colors"
+                                  title="Supprimer ce billet de la base"
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
@@ -668,7 +755,6 @@ export default function AdminDashboard({ isOpen, onClose }) {
               <p className="text-xs font-mono font-bold text-blue-700">{previewQrTicket.reference}</p>
             </div>
 
-            {/* High Res Image */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl inline-block shadow-inner">
               <img
                 src={previewQrTicket.qr_code_data.startsWith('data:') ? previewQrTicket.qr_code_data : `data:image/png;base64,${previewQrTicket.qr_code_data}`}
@@ -678,11 +764,10 @@ export default function AdminDashboard({ isOpen, onClose }) {
             </div>
 
             <div className="text-xs text-slate-500 space-y-0.5">
-              <p>Tél : <b>{previewQrTicket.buyer_phone}</b></p>
-              <p>Paiement : <b className="uppercase">{previewQrTicket.payment_method}</b> ({previewQrTicket.total_amount} FCFA)</p>
+              <p>Tél Dépôt : <b>{previewQrTicket.buyer_phone}</b></p>
+              <p>Moyen : <b>{formatPaymentMethod(previewQrTicket.payment_method)}</b> ({previewQrTicket.total_amount} FCFA)</p>
             </div>
 
-            {/* Download Link */}
             <a
               href={previewQrTicket.qr_code_data.startsWith('data:') ? previewQrTicket.qr_code_data : `data:image/png;base64,${previewQrTicket.qr_code_data}`}
               download={`QR_Code_${previewQrTicket.reference}.png`}
@@ -691,6 +776,98 @@ export default function AdminDashboard({ isOpen, onClose }) {
               <Download className="w-4 h-4" />
               Télécharger l'image QR Code
             </a>
+
+          </div>
+        </div>
+      )}
+
+      {/* 5. EDIT TICKET MODAL */}
+      {editingTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 max-w-md w-full space-y-4 relative">
+            
+            <button
+              onClick={() => setEditingTicket(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1 rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Pencil className="w-5 h-5 text-blue-600" />
+              <h3 className="font-black text-slate-900 text-base">Modifier le Billet {editingTicket.reference}</h3>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Nom & Prénoms</label>
+                <input
+                  type="text"
+                  value={editingTicket.buyer_name || ''}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, buyer_name: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Téléphone de Dépôt</label>
+                <input
+                  type="text"
+                  value={editingTicket.buyer_phone || ''}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, buyer_phone: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Numéro WhatsApp</label>
+                <input
+                  type="text"
+                  value={editingTicket.buyer_whatsapp || ''}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, buyer_whatsapp: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Adresse Email</label>
+                <input
+                  type="email"
+                  value={editingTicket.buyer_email || ''}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, buyer_email: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Statut du Paiement</label>
+                <select
+                  value={editingTicket.payment_status}
+                  onChange={(e) => setEditingTicket({ ...editingTicket, payment_status: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-600"
+                >
+                  <option value="SUCCESS">Succès</option>
+                  <option value="PENDING">En attente</option>
+                  <option value="FAILED">Échoué</option>
+                </select>
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTicket(null)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm"
+                >
+                  Enregistrer les modifications
+                </button>
+              </div>
+            </form>
 
           </div>
         </div>

@@ -42,6 +42,11 @@ class Config:
         f"{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,
+        'pool_timeout': 30
+    }
 
     # Jeko API Configuration
     JEKO_API_KEY = os.getenv('JEKO_API_KEY') or 'jeko_dd65e38653d0eab55cf33072706483c5acebf3f01a419ccd91b76dc9df3dff3d'

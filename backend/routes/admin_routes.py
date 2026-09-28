@@ -51,7 +51,7 @@ def admin_login():
             'sub': str(admin.id),
             'username': admin.username,
             'role': admin.role,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=365) # Stay logged in until manual logout
         }
         token = jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
         if isinstance(token, bytes):
@@ -71,27 +71,34 @@ def admin_login():
 @admin_bp.route('/api/admin/stats', methods=['GET'])
 @admin_required
 def get_stats():
-    total_tickets = Ticket.query.filter_by(payment_status='SUCCESS').count()
-    total_amount = db.session.query(db.func.sum(Ticket.total_amount)).filter_by(payment_status='SUCCESS').scalar() or 0
-    checked_in_count = Ticket.query.filter_by(payment_status='SUCCESS', checked_in=True).count()
+    total_tickets = Ticket.query.count()
+    success_tickets = Ticket.query.filter_by(payment_status='SUCCESS').all()
+    total_revenue = sum(t.total_amount for t in success_tickets if t.total_amount)
+    checked_in_count = Ticket.query.filter_by(checked_in=True).count()
     
     pending_count = Ticket.query.filter_by(payment_status='PENDING').count()
     failed_count = Ticket.query.filter_by(payment_status='FAILED').count()
 
-    # Operator breakdown
-    operators = ['wave', 'mtn', 'orange', 'moov', 'kkiapay']
-    operator_stats = {}
-    for op in operators:
-        count = Ticket.query.filter_by(payment_status='SUCCESS', payment_method=op).count()
-        sum_op = db.session.query(db.func.sum(Ticket.total_amount)).filter_by(payment_status='SUCCESS', payment_method=op).scalar() or 0
-        operator_stats[op] = {
-            'count': count,
-            'amount': int(sum_op)
-        }
+    all_tickets = Ticket.query.all()
+    operator_stats = {'wave': 0, 'mtn': 0, 'orange': 0, 'moov': 0, 'kkiapay': 0, 'other': 0}
+    for t in all_tickets:
+        pm = (t.payment_method or '').lower()
+        if 'wave' in pm:
+            operator_stats['wave'] += 1
+        elif 'mtn' in pm:
+            operator_stats['mtn'] += 1
+        elif 'orange' in pm:
+            operator_stats['orange'] += 1
+        elif 'moov' in pm:
+            operator_stats['moov'] += 1
+        elif 'kkiapay' in pm:
+            operator_stats['kkiapay'] += 1
+        else:
+            operator_stats['other'] += 1
 
     return jsonify({
         'total_tickets_sold': total_tickets,
-        'total_revenue': int(total_amount),
+        'total_revenue': int(total_revenue),
         'checked_in_count': checked_in_count,
         'pending_count': pending_count,
         'failed_count': failed_count,
@@ -256,29 +263,44 @@ def resend_email(ticket_id):
 def export_csv():
     tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
     
-    si = io.StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['Référence', 'Nom Prénoms', 'Téléphone', 'WhatsApp', 'Email', 'Quantité', 'Montant (FCFA)', 'Mode Paiement', 'Statut', 'Présent', 'Date Achat'])
+    output_bytes = io.BytesIO()
+    # UTF-8 BOM byte marker so Excel opens file as UTF-8 without mangling accents (Téléphone, Nom & Prénoms)
+    output_bytes.write(b'\xef\xbb\xbf')
+    
+    text_buffer = io.StringIO()
+    writer = csv.writer(text_buffer, delimiter=';')
+    writer.writerow(['Référence', 'Nom & Prénoms', 'Téléphone', 'WhatsApp', 'Email', 'Quantité', 'Montant (FCFA)', 'Mode Paiement (Jèko)', 'Statut Paiement', 'Présent Gala', 'Date Achat'])
 
     for t in tickets:
+        # Prepend single quote so Excel formats phone numbers as text and keeps leading 0 (ex: '0556936994)
+        phone = f"'{t.buyer_phone}" if t.buyer_phone else ''
+        wa = f"'{t.buyer_whatsapp}" if t.buyer_whatsapp else ''
+
+        status_fr = 'Succès' if t.payment_status == 'SUCCESS' else ('En attente' if t.payment_status == 'PENDING' else 'Échoué')
+        method_raw = t.payment_method or ''
+        method_fr = method_raw.replace('jeko-', '').upper() + ' (Jèko)' if 'jeko' in method_raw.lower() else method_raw.upper()
+
         writer.writerow([
             t.reference,
             t.buyer_name,
-            t.buyer_phone,
-            t.buyer_whatsapp,
+            phone,
+            wa,
             t.buyer_email,
             t.quantity,
             t.total_amount,
-            t.payment_method,
-            t.payment_status,
+            method_fr,
+            status_fr,
             'Oui' if t.checked_in else 'Non',
-            t.created_at.strftime('%Y-%m-%d %H:%M:%S') if t.created_at else ''
+            t.created_at.strftime('%d/%m/%Y %H:%M') if t.created_at else ''
         ])
 
-    output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = "attachment; filename=open_your_heart_tickets.csv"
-    output.headers["Content-type"] = "text/csv; charset=utf-8"
-    return output
+    output_bytes.write(text_buffer.getvalue().encode('utf-8'))
+    output_bytes.seek(0)
+
+    res = make_response(output_bytes.getvalue())
+    res.headers["Content-Disposition"] = "attachment; filename=tickets_award_night_2026.csv"
+    res.headers["Content-type"] = "text/csv; charset=utf-8"
+    return res
 
 @admin_bp.route('/api/admin/export-sql', methods=['GET'])
 @admin_required

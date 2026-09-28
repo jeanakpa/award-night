@@ -95,27 +95,87 @@ export default function Hero({ onOpenTicketModal }) {
     ? partners
     : partners.filter(p => p.category === activeCategory);
 
-  // Programme de la soirée (Capture 3 Vertical List Style)
+  // Programme officiel de la soirée (16 étapes sans heure)
   const programSchedule = [
     {
-      theme: 'Accueil et Tapis Rouge',
-      description: 'Arrivée des invités et cocktail.',
+      theme: 'Mise en place',
+      description: 'Musique d’ambiance douce et installation des invités.',
+      img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Accueil des invités et prestation de bienvenue',
+      description: 'Musique d’ambiance de bienvenue et accueil chaleureux.',
       img: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=400&q=80'
     },
     {
-      theme: 'Prière d\'ouverture',
-      description: 'Bénédiction officielle et mot d\'ouverture de la Jeunesse Bethesda.',
+      theme: 'Ouverture officielle',
+      description: 'Baisse progressive de la musique et mot de bienvenue du PCO.',
       img: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=400&q=80'
     },
     {
-      theme: 'Dîner Gastronomique',
-      description: 'Buffet d\'honneur.',
+      theme: 'Première ambiance artistique',
+      description: 'Prestation spéciale d\'un artiste en herbe.',
+      img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Buffet 1',
+      description: 'Plat chaud savoureux accompagné par le groupe musical.',
       img: 'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=400&q=80'
     },
     {
-      theme: 'Remise des Trophées',
-      description: 'Distinction officielle des lauréats, personnalités et bienfaiteurs.',
+      theme: 'Remise de prix 1',
+      description: 'Cérémonie de remise des prix : Jeunesse et mérite.',
       img: 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Intermède musical',
+      description: 'Prestation chorale inspirante.',
+      img: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Distinctions particulières',
+      description: 'Remise de distinctions particulières et honorifiques.',
+      img: 'https://images.unsplash.com/photo-1578269174936-2709b6aeb913?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Buffet 2',
+      description: 'Dégustation des desserts et rafraîchissements au cocktail.',
+      img: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Défilé de mode',
+      description: 'Défilé de mode chic et présentation des créations.',
+      img: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Remise de prix 2',
+      description: 'Remise solennelle des grands prix de la soirée.',
+      img: 'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Prestation live',
+      description: 'Performance live réunissant artiste en herbe et groupe musical.',
+      img: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Mot de remerciements et discours finaux',
+      description: 'Discours du PCO et de la présidente de la jeunesse.',
+      img: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Show live du groupe musical',
+      description: 'Concert et prestation enflammée du groupe musical.',
+      img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Grande ambiance de clôture et dancefloor',
+      description: 'Animation festive, dancefloor ouvert et remerciements du MC.',
+      img: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=400&q=80'
+    },
+    {
+      theme: 'Clôture officielle',
+      description: 'Fin de la cérémonie officielle de l\'Award Night.',
+      img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80'
     }
   ];
 
@@ -292,11 +352,16 @@ export default function Hero({ onOpenTicketModal }) {
                   />
 
                   {/* Middle Title & Description */}
-                  <div className="min-w-0 space-y-0.5 text-left">
-                    <h4 className="font-extrabold text-sm sm:text-base text-white group-hover:text-[#FF5500] transition-colors truncate">
-                      {item.theme}
-                    </h4>
-                    <p className="text-xs text-[#94B3DE] line-clamp-1 font-medium">
+                  <div className="min-w-0 space-y-1 text-left">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black text-[#FF5500] bg-[#FF5500]/10 px-2 py-0.5 rounded-md border border-[#FF5500]/20 shrink-0">
+                        {idx + 1}
+                      </span>
+                      <h4 className="font-extrabold text-sm sm:text-base text-white group-hover:text-[#FF5500] transition-colors">
+                        {item.theme}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-[#94B3DE] font-medium leading-snug">
                       {item.description}
                     </p>
                   </div>

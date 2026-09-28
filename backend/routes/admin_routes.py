@@ -25,7 +25,8 @@ def admin_required(f):
 
         try:
             payload = jwt.decode(token, current_app.config['JWT_SECRET_KEY'], algorithms=['HS256'])
-            current_user = AdminUser.query.get(payload['sub'])
+            user_id = int(payload['sub'])
+            current_user = AdminUser.query.get(user_id)
             if not current_user:
                 return jsonify({'error': 'Utilisateur non autorisé.'}), 401
         except Exception as e:
@@ -46,7 +47,7 @@ def admin_login():
         return jsonify({'error': 'Identifiants incorrects.'}), 401
 
     payload = {
-        'sub': admin.id,
+        'sub': str(admin.id),
         'username': admin.username,
         'role': admin.role,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)

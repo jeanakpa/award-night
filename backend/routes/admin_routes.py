@@ -38,29 +38,35 @@ def admin_required(f):
 
 @admin_bp.route('/api/admin/login', methods=['POST'])
 def admin_login():
-    data = request.get_json() or {}
-    username = data.get('username', '').strip()
-    password = data.get('password', '').strip()
+    try:
+        data = request.get_json() or {}
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
 
-    admin = AdminUser.query.filter_by(username=username).first()
-    if not admin or not admin.check_password(password):
-        return jsonify({'error': 'Identifiants incorrects.'}), 401
+        admin = AdminUser.query.filter_by(username=username).first()
+        if not admin or not admin.check_password(password):
+            return jsonify({'error': 'Identifiants incorrects.'}), 401
 
-    payload = {
-        'sub': str(admin.id),
-        'username': admin.username,
-        'role': admin.role,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-    }
-    token = jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
-
-    return jsonify({
-        'token': token,
-        'user': {
+        payload = {
+            'sub': str(admin.id),
             'username': admin.username,
-            'role': admin.role
+            'role': admin.role,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }
-    }), 200
+        token = jwt.encode(payload, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+
+        return jsonify({
+            'token': token,
+            'user': {
+                'username': admin.username,
+                'role': admin.role
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ADMIN LOGIN ERROR] {e}")
+        return jsonify({'error': f"Erreur lors de la connexion: {str(e)}"}), 500
 
 @admin_bp.route('/api/admin/stats', methods=['GET'])
 @admin_required

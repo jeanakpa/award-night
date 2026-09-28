@@ -29,7 +29,8 @@ def admin_required(f):
             if not current_user:
                 return jsonify({'error': 'Utilisateur non autorisé.'}), 401
         except Exception as e:
-            return jsonify({'error': 'Session expirée ou jeton invalide.'}), 401
+            print(f"[JWT DECODE ERROR] Token decoding failed: {e}")
+            return jsonify({'error': f'Session expirée ou jeton invalide ({str(e)}).'}), 401
 
         return f(*args, **kwargs)
     return decorated

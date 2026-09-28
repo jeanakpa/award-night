@@ -117,7 +117,65 @@ def list_tickets():
         query = query.filter(Ticket.checked_in == False)
 
     tickets = query.order_by(Ticket.created_at.desc()).all()
-    return jsonify([t.to_dict() for t in tickets]), 200
+    ticket_list = []
+    has_changes = False
+    for t in tickets:
+        d = t.to_dict()
+        if not d.get('qr_code_data'):
+            verify_url = f"https://openyourheart-bethesda.ci/verify/{t.reference}"
+            qr_base64 = generate_qr_code_base64(verify_url)
+            d['qr_code_data'] = qr_base64
+            t.qr_code_data = qr_base64
+            has_changes = True
+        ticket_list.append(d)
+
+    if has_changes:
+        db.session.commit()
+
+    return jsonify(ticket_list), 200
+
+@admin_bp.route('/api/admin/tickets/<int:ticket_id>/toggle-checkin', methods=['POST'])
+@admin_required
+def toggle_checkin(ticket_id):
+    ticket = Ticket.query.get(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Billet non trouvé.'}), 404
+
+    ticket.checked_in = not ticket.checked_in
+    if ticket.checked_in:
+        ticket.checked_in_at = datetime.datetime.utcnow()
+    else:
+        ticket.checked_in_at = None
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f"Statut d'entrée mis à jour pour {ticket.buyer_name} ({'Présent' if ticket.checked_in else 'Non présent'}).",
+        'ticket': ticket.to_dict()
+    }), 200
+
+@admin_bp.route('/api/admin/tickets/<int:ticket_id>/update-status', methods=['POST'])
+@admin_required
+def update_ticket_status(ticket_id):
+    data = request.get_json() or {}
+    new_status = data.get('status', 'SUCCESS').upper()
+
+    ticket = Ticket.query.get(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Billet non trouvé.'}), 404
+
+    ticket.payment_status = new_status
+    if not ticket.qr_code_data:
+        verify_url = f"https://openyourheart-bethesda.ci/verify/{ticket.reference}"
+        ticket.qr_code_data = generate_qr_code_base64(verify_url)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f"Statut de paiement de {ticket.buyer_name} modifié en {new_status}.",
+        'ticket': ticket.to_dict()
+    }), 200
 
 @admin_bp.route('/api/admin/tickets/validate-qr', methods=['POST'])
 @admin_required

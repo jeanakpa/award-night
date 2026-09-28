@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Shield, Lock, Search, Filter, Download, Mail, CheckCircle, Clock, Smartphone, TrendingUp, Users, DollarSign, Camera, LogOut, RefreshCw } from 'lucide-react';
+import { 
+  X, Shield, Lock, Search, Filter, Download, Mail, CheckCircle, 
+  Clock, Smartphone, TrendingUp, Users, DollarSign, Camera, LogOut, 
+  RefreshCw, Eye, QrCode, AlertCircle, ArrowUpRight, Check, XCircle
+} from 'lucide-react';
 import QrScanner from './QrScanner';
 import api, { API_BASE_URL } from '../api';
 
@@ -16,6 +20,9 @@ export default function AdminDashboard({ isOpen, onClose }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [operatorFilter, setOperatorFilter] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+
+  // Selected ticket for QR Code image preview modal
+  const [previewQrTicket, setPreviewQrTicket] = useState(null);
 
   useEffect(() => {
     if (token && isOpen) {
@@ -68,6 +75,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
   // Fetch Tickets List
   const fetchTickets = async () => {
+    setLoading(true);
     try {
       const query = new URLSearchParams({
         search,
@@ -81,6 +89,40 @@ export default function AdminDashboard({ isOpen, onClose }) {
       }
     } catch (err) {
       console.log('Error fetching tickets:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle Check-in status directly from row
+  const handleToggleCheckin = async (ticketId) => {
+    setActionMessage('');
+    try {
+      const res = await api.post(`/admin/tickets/${ticketId}/toggle-checkin`);
+      if (res.data?.success) {
+        setActionMessage(`✅ ${res.data.message}`);
+        fetchTickets();
+        fetchStats();
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Erreur de mise à jour.";
+      setActionMessage(`❌ ${msg}`);
+    }
+  };
+
+  // Update Payment Status directly from row
+  const handleUpdateStatus = async (ticketId, newStatus) => {
+    setActionMessage('');
+    try {
+      const res = await api.post(`/admin/tickets/${ticketId}/update-status`, { status: newStatus });
+      if (res.data?.success) {
+        setActionMessage(`✅ ${res.data.message}`);
+        fetchTickets();
+        fetchStats();
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Erreur de mise à jour statut.";
+      setActionMessage(`❌ ${msg}`);
     }
   };
 
@@ -90,7 +132,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
     try {
       const res = await api.post(`/admin/tickets/${ticketId}/resend-email`);
       if (res.data) {
-        setActionMessage('✅ Email renvoyé avec succès !');
+        setActionMessage('✅ Billet & QR Code renvoyés par email avec succès !');
         fetchTickets();
       }
     } catch (err) {
@@ -105,313 +147,482 @@ export default function AdminDashboard({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg animate-fadeIn overflow-y-auto">
-      <div className="relative w-full max-w-6xl card-emerald rounded-3xl p-6 sm:p-8 border border-[#0F5937] shadow-2xl my-8 max-h-[90vh] flex flex-col">
-        
-        {/* Ribbon Bar */}
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#FF5500] via-[#FFD700] to-[#00E676]"></div>
-
-        {/* Dashboard Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#0F5937] shrink-0 pt-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#042B1A] border border-[#0F5937] flex items-center justify-center text-[#FF5500] shadow-md">
-              <Shield className="w-6 h-6 text-[#FF5500]" />
-            </div>
-            <div>
-              <h3 className="text-xl font-extrabold text-white">
-                Dashboard Administration Gala
-              </h3>
-              <p className="text-xs text-[#7AA993]">
-                Gestion des billets, statistiques financières & scanner d'entrée
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-100 text-slate-800 w-full min-h-screen flex flex-col font-sans animate-fadeIn">
+      
+      {/* 1. TOP NAVIGATION HEADER */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between shadow-xs sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
+            <Shield className="w-6 h-6" />
           </div>
-
-          <div className="flex items-center gap-3">
-            {token && (
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-200 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Déconnexion
-              </button>
-            )}
-            <button 
-              onClick={onClose}
-              className="text-gray-300 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Administration Award Night
+              <span className="text-[11px] font-extrabold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+                PRO GALA
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500">
+              Gestion centralisée des billets, suivi des encaissements et contrôle des entrées
+            </p>
           </div>
         </div>
 
-        {/* LOGIN SCREEN */}
-        {!token ? (
-          <div className="max-w-md mx-auto my-12 w-full card-emerald p-8 rounded-3xl border border-[#0F5937] shadow-2xl">
-            <div className="text-center mb-6">
-              <Lock className="w-12 h-12 text-[#FF5500] mx-auto mb-2" />
-              <h4 className="text-xl font-extrabold text-white">Connexion Administrateur</h4>
-              <p className="text-xs text-[#7AA993]">Entrez vos identifiants pour gérer l'événement</p>
+        <div className="flex items-center gap-2">
+          {token && (
+            <>
+              <button
+                onClick={() => { fetchStats(); fetchTickets(); }}
+                className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                title="Actualiser les données"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+                <span className="hidden sm:inline">Actualiser</span>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </button>
+            </>
+          )}
+
+          <button 
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors ml-2"
+            title="Fermer l'administration"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      </header>
+
+      {/* 2. LOGIN SCREEN FOR UNAUTHENTICATED USERS */}
+      {!token ? (
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto text-blue-600 shadow-xs">
+                <Lock className="w-7 h-7" />
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Connexion Administrateur</h2>
+              <p className="text-xs text-slate-500">
+                Saisissez vos identifiants pour gérer les inscriptions & scanner les billets.
+              </p>
             </div>
 
             {loginError && (
-              <div className="mb-4 p-3 bg-rose-950/80 border border-rose-500/60 rounded-xl text-xs text-rose-200 text-center font-semibold">
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-bold">
                 {loginError}
               </div>
             )}
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-[#C5E3D5] uppercase mb-1">Nom d'utilisateur</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Nom d'utilisateur
+                </label>
                 <input
                   type="text"
                   required
                   value={credentials.username}
                   onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                   placeholder="admin"
-                  className="w-full bg-[#031E12] border border-[#0E5434] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF5500]"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#C5E3D5] uppercase mb-1">Mot de Passe</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Mot de passe
+                </label>
                 <input
                   type="password"
                   required
                   value={credentials.password}
                   onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full bg-[#031E12] border border-[#0E5434] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF5500]"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-[#FF5500] to-[#FF6E00] hover:from-[#FF661A] hover:to-[#FF5500] text-white font-extrabold rounded-xl shadow-[0_4px_20px_rgba(255,85,0,0.4)] text-sm mt-2 border border-[#FF7733]/30"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-md text-sm transition-all"
               >
                 {loading ? 'Connexion en cours...' : 'Se Connecter'}
               </button>
             </form>
           </div>
-        ) : (
-          /* AUTHENTICATED DASHBOARD */
-          <div className="flex-1 overflow-y-auto space-y-6 pt-4 pr-1">
-            
-            {/* Navigation Tabs */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 bg-[#031E12] p-1.5 rounded-2xl border border-[#0E5434]">
-                <button
-                  onClick={() => setActiveTab('tickets')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'tickets' ? 'pill-active' : 'pill-inactive'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  Liste des Billets
-                </button>
-                <button
-                  onClick={() => setActiveTab('scanner')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                    activeTab === 'scanner' ? 'pill-active' : 'pill-inactive'
-                  }`}
-                >
-                  <Camera className="w-4 h-4" />
-                  Scanner QR Code Entrée
-                </button>
+        </div>
+      ) : (
+        /* 3. AUTHENTICATED DASHBOARD BODY */
+        <div className="flex-1 px-4 sm:px-8 py-6 space-y-6 max-w-[1600px] w-full mx-auto">
+          
+          {/* KPI STATS CARDS */}
+          {stats && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-extrabold uppercase text-slate-400">Recettes Total Validées</span>
+                  <span className="text-2xl font-black text-slate-900 block">
+                    {stats.total_revenue.toLocaleString('fr-FR')} F
+                  </span>
+                  <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                    <CheckCircle className="w-3.5 h-3.5" /> Paiements confirmés
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                  <DollarSign className="w-6 h-6" />
+                </div>
               </div>
 
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-extrabold uppercase text-slate-400">Billets / Inscriptions</span>
+                  <span className="text-2xl font-black text-slate-900 block">
+                    {stats.total_tickets_sold} Validé{stats.total_tickets_sold > 1 ? 's' : ''}
+                  </span>
+                  <span className="text-[11px] text-amber-600 font-bold flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> {stats.pending_count || 0} En attente
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                  <Users className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-extrabold uppercase text-slate-400">Taux de Présence</span>
+                  <span className="text-2xl font-black text-slate-900 block">
+                    {stats.checked_in_count} / {stats.total_tickets_sold}
+                  </span>
+                  <span className="text-[11px] text-blue-600 font-bold">
+                    Scannés à l'entrée du Gala
+                  </span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                  <Camera className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                <div className="space-y-1 w-full">
+                  <span className="text-xs font-extrabold uppercase text-slate-400">Par Opérateur</span>
+                  <div className="text-xs grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-semibold text-slate-600">
+                    <div>🌊 Wave: <b className="text-slate-900">{stats.operator_stats?.wave?.count || 0}</b></div>
+                    <div>🟡 MTN: <b className="text-slate-900">{stats.operator_stats?.mtn?.count || 0}</b></div>
+                    <div>🟠 Orange: <b className="text-slate-900">{stats.operator_stats?.orange?.count || 0}</b></div>
+                    <div>💳 Autre: <b className="text-slate-900">{(stats.operator_stats?.kkiapay?.count || 0) + (stats.operator_stats?.moov?.count || 0)}</b></div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {actionMessage && (
+            <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600" />
+              <span>{actionMessage}</span>
+            </div>
+          )}
+
+          {/* MAIN TAB CONTENT CONTROLS */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+            
+            {/* Tabs */}
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
               <button
-                onClick={handleExportCsv}
-                className="px-4 py-2 bg-[#052C1C] hover:bg-[#073824] border border-[#0F5937] text-[#FFD700] text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-md"
+                onClick={() => setActiveTab('tickets')}
+                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 ${
+                  activeTab === 'tickets' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <Download className="w-4 h-4 text-[#FF5500]" />
-                Exporter en CSV
+                <Users className="w-4 h-4" />
+                <span>Tableau des Inscriptions ({tickets.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('scanner')}
+                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 ${
+                  activeTab === 'scanner' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Camera className="w-4 h-4" />
+                <span>Scanner QR Code Entrée</span>
               </button>
             </div>
 
-            {/* KPI STATS CARDS */}
-            {stats && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-[#031E12] p-4 rounded-2xl border border-[#0E5434] shadow-lg">
-                  <div className="flex items-center justify-between text-[#7AA993] mb-2">
-                    <span className="text-xs font-bold uppercase">Recettes Totales</span>
-                    <DollarSign className="w-5 h-5 text-[#FFD700]" />
-                  </div>
-                  <span className="text-2xl font-extrabold text-[#FFD700] block">
-                    {stats.total_revenue.toLocaleString('fr-FR')} FCFA
-                  </span>
-                  <span className="text-[10px] text-[#7AA993]">Paiements validés</span>
-                </div>
+            {/* Export Action */}
+            <button
+              onClick={handleExportCsv}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exporter la liste en CSV</span>
+            </button>
+          </div>
 
-                <div className="bg-[#031E12] p-4 rounded-2xl border border-[#0E5434] shadow-lg">
-                  <div className="flex items-center justify-between text-[#7AA993] mb-2">
-                    <span className="text-xs font-bold uppercase">Billets Vendus</span>
-                    <Users className="w-5 h-5 text-[#FF5500]" />
-                  </div>
-                  <span className="text-2xl font-extrabold text-white block">
-                    {stats.total_tickets_sold} Billet{stats.total_tickets_sold > 1 ? 's' : ''}
-                  </span>
-                  <span className="text-[10px] text-[#00E676]">Standard Test (10 FCFA)</span>
-
-                </div>
-
-                <div className="bg-[#031E12] p-4 rounded-2xl border border-[#0E5434] shadow-lg">
-                  <div className="flex items-center justify-between text-[#7AA993] mb-2">
-                    <span className="text-xs font-bold uppercase">Présence Entrée</span>
-                    <CheckCircle className="w-5 h-5 text-[#00E676]" />
-                  </div>
-                  <span className="text-2xl font-extrabold text-white block">
-                    {stats.checked_in_count} / {stats.total_tickets_sold}
-                  </span>
-                  <span className="text-[10px] text-[#7AA993]">Scannés au Gala</span>
-                </div>
-
-                <div className="bg-[#031E12] p-4 rounded-2xl border border-[#0E5434] shadow-lg">
-                  <div className="flex items-center justify-between text-[#7AA993] mb-1">
-                    <span className="text-xs font-bold uppercase">Par Opérateur</span>
-                    <Smartphone className="w-5 h-5 text-[#FF5500]" />
-                  </div>
-                  <div className="text-[11px] space-y-0.5 text-[#C5E3D5]">
-                    <div className="flex justify-between"><span>🌊 Wave:</span> <b className="text-white">{stats.operator_stats?.wave?.count || 0}</b></div>
-                    <div className="flex justify-between"><span>🟡 MTN:</span> <b className="text-white">{stats.operator_stats?.mtn?.count || 0}</b></div>
-                    <div className="flex justify-between"><span>🟠 Orange:</span> <b className="text-white">{stats.operator_stats?.orange?.count || 0}</b></div>
-                    <div className="flex justify-between"><span>💳 KKiaPay/Autre:</span> <b className="text-white">{(stats.operator_stats?.kkiapay?.count || 0) + (stats.operator_stats?.moov?.count || 0)}</b></div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {actionMessage && (
-              <div className="p-3 bg-[#053D25] border border-[#00E676]/50 text-[#00E676] rounded-xl text-xs text-center font-bold">
-                {actionMessage}
-              </div>
-            )}
-
-            {/* TAB CONTENT */}
-            {activeTab === 'scanner' ? (
-              <QrScanner token={token} onValidationSuccess={() => { fetchStats(); fetchTickets(); }} />
-            ) : (
-              /* TICKETS TABLE VIEW */
-              <div className="space-y-4">
+          {/* TAB 1: SCANNER */}
+          {activeTab === 'scanner' ? (
+            <QrScanner token={token} onValidationSuccess={() => { fetchStats(); fetchTickets(); }} />
+          ) : (
+            /* TAB 2: TICKETS TABLE VIEW */
+            <div className="space-y-4">
+              
+              {/* Filters Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 
-                {/* Search & Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7AA993]" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Rechercher nom, réf, tél..."
-                      className="w-full bg-[#031E12] border border-[#0E5434] rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-[#5A8772] focus:outline-none focus:border-[#FF5500]"
-                    />
-                  </div>
-
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-[#031E12] border border-[#0E5434] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF5500]"
-                  >
-                    <option value="">Tous les Statuts</option>
-                    <option value="SUCCESS">Succès (Payé)</option>
-                    <option value="PENDING">En Attente</option>
-                    <option value="FAILED">Échoué</option>
-                  </select>
-
-                  <select
-                    value={operatorFilter}
-                    onChange={(e) => setOperatorFilter(e.target.value)}
-                    className="bg-[#031E12] border border-[#0E5434] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF5500]"
-                  >
-                    <option value="">Tous les Opérateurs</option>
-                    <option value="wave">Wave</option>
-                    <option value="mtn">MTN Money</option>
-                    <option value="orange">Orange Money</option>
-                    <option value="moov">Moov Money</option>
-                    <option value="kkiapay">KKiaPay</option>
-                  </select>
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher nom, réf, tél, email..."
+                    className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 shadow-xs"
+                  />
                 </div>
 
-                {/* Table */}
-                <div className="bg-[#031E12] border border-[#0E5434] rounded-2xl overflow-hidden shadow-xl">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-[#C5E3D5]">
-                      <thead className="bg-[#052C1C] text-[#FFD700] uppercase text-[10px] tracking-wider border-b border-[#0E5434]">
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-xs"
+                >
+                  <option value="">Tous les Statuts de Paiement</option>
+                  <option value="SUCCESS">Paiements Confirmés (SUCCESS)</option>
+                  <option value="PENDING">En Attente de Paiement (PENDING)</option>
+                  <option value="FAILED">Échoués (FAILED)</option>
+                </select>
+
+                {/* Operator Filter */}
+                <select
+                  value={operatorFilter}
+                  onChange={(e) => setOperatorFilter(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-xs"
+                >
+                  <option value="">Tous les Opérateurs</option>
+                  <option value="wave">Wave CI</option>
+                  <option value="mtn">MTN Money</option>
+                  <option value="orange">Orange Money</option>
+                  <option value="moov">Moov Money</option>
+                  <option value="kkiapay">KKiaPay / Carte</option>
+                </select>
+
+              </div>
+
+              {/* Table Container */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    
+                    <thead className="bg-slate-50 text-slate-500 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="py-3.5 px-4">Référence</th>
+                        <th className="py-3.5 px-4 text-center">QR Code</th>
+                        <th className="py-3.5 px-4">Participant & Email</th>
+                        <th className="py-3.5 px-4">Contact & WA</th>
+                        <th className="py-3.5 px-4">Montant</th>
+                        <th className="py-3.5 px-4">Opérateur</th>
+                        <th className="py-3.5 px-4">Statut Paiement</th>
+                        <th className="py-3.5 px-4 text-center">Entrée Gala</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {tickets.length === 0 ? (
                         <tr>
-                          <th className="py-3 px-4">Référence</th>
-                          <th className="py-3 px-4">Participant</th>
-                          <th className="py-3 px-4">Contact & WhatsApp</th>
-                          <th className="py-3 px-4">Montant</th>
-                          <th className="py-3 px-4">Opérateur</th>
-                          <th className="py-3 px-4">Statut</th>
-                          <th className="py-3 px-4">Entrée</th>
-                          <th className="py-3 px-4 text-right">Actions</th>
+                          <td colSpan="9" className="py-12 text-center text-slate-400 text-xs">
+                            Aucun billet ou inscription trouvé.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#093D25]">
-                        {tickets.length === 0 ? (
-                          <tr>
-                            <td colSpan="8" className="py-8 text-center text-[#7AA993] text-xs">
-                              Aucun billet correspondant trouvé.
+                      ) : (
+                        tickets.map((t) => (
+                          <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                            
+                            {/* Reference */}
+                            <td className="py-3.5 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">
+                              {t.reference}
                             </td>
-                          </tr>
-                        ) : (
-                          tickets.map((t) => (
-                            <tr key={t.id} className="hover:bg-white/5 transition-colors">
-                              <td className="py-3 px-4 font-mono font-extrabold text-[#FFD700]">{t.reference}</td>
-                              <td className="py-3 px-4 font-bold text-white">{t.buyer_name}</td>
-                              <td className="py-3 px-4">
-                                <div>{t.buyer_phone}</div>
-                                <div className="text-[10px] text-[#7AA993]">WA: {t.buyer_whatsapp}</div>
-                              </td>
-                              <td className="py-3 px-4 font-extrabold text-white">{t.total_amount.toLocaleString('fr-FR')} F</td>
-                              <td className="py-3 px-4 uppercase font-bold text-[#C5E3D5]">{t.payment_method}</td>
-                              <td className="py-3 px-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                  t.payment_status === 'SUCCESS' ? 'bg-[#053D25] text-[#00E676] border border-[#00E676]/40' :
-                                  t.payment_status === 'PENDING' ? 'bg-amber-950 text-amber-400 border border-amber-500/40' :
-                                  'bg-rose-950 text-rose-400 border border-rose-500/40'
-                                }`}>
-                                  {t.payment_status}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
+
+                            {/* QR Code Thumbnail Preview */}
+                            <td className="py-3.5 px-4 text-center">
+                              {t.qr_code_data ? (
+                                <button
+                                  onClick={() => setPreviewQrTicket(t)}
+                                  className="group relative inline-block p-1 bg-white border border-slate-200 rounded-lg hover:border-blue-500 shadow-xs transition-all"
+                                  title="Cliquer pour agrandir le QR Code"
+                                >
+                                  <img
+                                    src={t.qr_code_data.startsWith('data:') ? t.qr_code_data : `data:image/png;base64,${t.qr_code_data}`}
+                                    alt="QR Code"
+                                    className="w-10 h-10 object-contain rounded"
+                                  />
+                                  <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 rounded flex items-center justify-center transition-opacity">
+                                    <Eye className="w-4 h-4 text-blue-700" />
+                                  </div>
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">Non généré</span>
+                              )}
+                            </td>
+
+                            {/* Participant */}
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-slate-900">{t.buyer_name}</div>
+                              <div className="text-[11px] text-slate-500">{t.buyer_email || 'Pas d\'email'}</div>
+                            </td>
+
+                            {/* Contact & WhatsApp */}
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <div className="font-semibold text-slate-800">{t.buyer_phone}</div>
+                              <div className="text-[10px] text-emerald-600 font-bold">WA: {t.buyer_whatsapp}</div>
+                            </td>
+
+                            {/* Amount */}
+                            <td className="py-3.5 px-4 font-black text-slate-900 whitespace-nowrap">
+                              {t.total_amount?.toLocaleString('fr-FR')} F
+                              <span className="block text-[10px] font-normal text-slate-500">Qté: {t.quantity || 1}</span>
+                            </td>
+
+                            {/* Payment Operator */}
+                            <td className="py-3.5 px-4 uppercase font-bold text-slate-700 whitespace-nowrap">
+                              {t.payment_method || 'N/A'}
+                            </td>
+
+                            {/* Payment Status Dropdown Selector */}
+                            <td className="py-3.5 px-4">
+                              <select
+                                value={t.payment_status}
+                                onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold focus:outline-none cursor-pointer border ${
+                                  t.payment_status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                                  t.payment_status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-300' :
+                                  'bg-rose-50 text-rose-700 border-rose-300'
+                                }`}
+                              >
+                                <option value="SUCCESS">✅ SUCCESS (Payé)</option>
+                                <option value="PENDING">⏳ PENDING (En attente)</option>
+                                <option value="FAILED">❌ FAILED (Échoué)</option>
+                              </select>
+                            </td>
+
+                            {/* Checked-in status 1-click Toggle */}
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleToggleCheckin(t.id)}
+                                className={`px-3 py-1 rounded-lg text-xs font-extrabold inline-flex items-center gap-1.5 transition-all shadow-xs border ${
+                                  t.checked_in
+                                    ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                                    : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                                }`}
+                                title="Cliquer pour modifier l'état de présence au gala"
+                              >
                                 {t.checked_in ? (
-                                  <span className="text-[#00E676] font-bold flex items-center gap-1">
-                                    <CheckCircle className="w-3.5 h-3.5" /> Oui
-                                  </span>
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>Présent</span>
+                                  </>
                                 ) : (
-                                  <span className="text-[#7AA993]">Non</span>
+                                  <>
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>Non scanné</span>
+                                  </>
                                 )}
-                              </td>
-                              <td className="py-3 px-4 text-right">
+                              </button>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() => handleResendEmail(t.id)}
-                                  className="px-2.5 py-1 bg-[#052C1C] hover:bg-[#FF5500] hover:text-white border border-[#0F5937] text-[#FF5500] text-[11px] font-bold rounded-lg flex items-center gap-1 ml-auto transition-colors"
-                                  title="Renvoyer l'email avec le billet PDF"
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white border border-slate-300 text-slate-700 text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors"
+                                  title="Renvoyer le billet par email"
                                 >
                                   <Mail className="w-3.5 h-3.5" />
-                                  Email
+                                  <span>Email</span>
                                 </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                              </div>
+                            </td>
 
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+
+                  </table>
+                </div>
               </div>
-            )}
+
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* 4. LARGE QR CODE PREVIEW MODAL */}
+      {previewQrTicket && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 max-w-sm w-full space-y-4 text-center relative">
+            
+            <button
+              onClick={() => setPreviewQrTicket(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 p-1 rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                Aperçu QR Code Officiel
+              </span>
+              <h3 className="font-black text-slate-900 text-base">{previewQrTicket.buyer_name}</h3>
+              <p className="text-xs font-mono font-bold text-blue-700">{previewQrTicket.reference}</p>
+            </div>
+
+            {/* High Res Image */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl inline-block shadow-inner">
+              <img
+                src={previewQrTicket.qr_code_data.startsWith('data:') ? previewQrTicket.qr_code_data : `data:image/png;base64,${previewQrTicket.qr_code_data}`}
+                alt="QR Code Billet"
+                className="w-48 h-48 mx-auto object-contain"
+              />
+            </div>
+
+            <div className="text-xs text-slate-500 space-y-0.5">
+              <p>Tél : <b>{previewQrTicket.buyer_phone}</b></p>
+              <p>Paiement : <b className="uppercase">{previewQrTicket.payment_method}</b> ({previewQrTicket.total_amount} FCFA)</p>
+            </div>
+
+            {/* Download Link */}
+            <a
+              href={previewQrTicket.qr_code_data.startsWith('data:') ? previewQrTicket.qr_code_data : `data:image/png;base64,${previewQrTicket.qr_code_data}`}
+              download={`QR_Code_${previewQrTicket.reference}.png`}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+            >
+              <Download className="w-4 h-4" />
+              Télécharger l'image QR Code
+            </a>
 
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
     </div>
   );
 }
-

@@ -18,6 +18,9 @@ def admin_required(f):
             token = auth_header.split(' ')[1]
 
         if not token:
+            token = request.args.get('token')
+
+        if not token:
             return jsonify({'error': 'Jeton d\'authentification manquant.'}), 401
 
         try:
@@ -183,21 +186,25 @@ def validate_qr():
     data = request.get_json() or {}
     code = data.get('code', '').strip()
 
-    # Code may be reference (e.g. OYH-2026-X89A2) or URL (https://openyourheart-bethesda.ci/verify/OYH-2026-X89A2)
+    # Extract reference using regex (handles ticket_ref=AWN-..., /verify/AWN-..., or raw AWN-...)
+    import re
     reference = code
-    if '/' in code:
-        reference = code.split('/')[-1]
+    match = re.search(r'(AWN-[A-Za-z0-9-]+|OYH-[A-Za-z0-9-]+)', code, re.IGNORECASE)
+    if match:
+        reference = match.group(1).upper()
+    elif '/' in code:
+        reference = code.split('/')[-1].split('?')[0].strip()
 
     ticket = Ticket.query.filter_by(reference=reference).first()
     if not ticket:
-        return jsonify({'success': False, 'message': 'Billet invalide ou introuvable.'}), 404
+        ticket = Ticket.query.filter(Ticket.reference.ilike(f"%{reference}%")).first()
 
+    if not ticket:
+        return jsonify({'success': False, 'message': f'Billet ({reference}) introuvable dans la base.'}), 404
+
+    # If payment status is PENDING, auto confirm to SUCCESS upon admin scanner verification
     if ticket.payment_status != 'SUCCESS':
-        return jsonify({
-            'success': False,
-            'message': f"Paiement non confirmé pour ce billet (Statut: {ticket.payment_status}).",
-            'ticket': ticket.to_dict()
-        }), 400
+        ticket.payment_status = 'SUCCESS'
 
     if ticket.checked_in:
         return jsonify({

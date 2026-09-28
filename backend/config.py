@@ -36,15 +36,6 @@ class Config:
     if raw_db_url:
         if raw_db_url.startswith('postgres://'):
             raw_db_url = raw_db_url.replace('postgres://', 'postgresql://', 1)
-        if '@dpg-' in raw_db_url and '.render.com' not in raw_db_url:
-            import re
-            raw_db_url = re.sub(
-                r'@(dpg-[a-zA-Z0-9-]+)',
-                r'@\1.frankfurt-postgres.render.com',
-                raw_db_url
-            )
-        if 'sslmode=' not in raw_db_url and 'sqlite' not in raw_db_url:
-            raw_db_url += '?sslmode=require' if '?' not in raw_db_url else '&sslmode=require'
 
     SQLALCHEMY_DATABASE_URI = raw_db_url or (
         f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@"

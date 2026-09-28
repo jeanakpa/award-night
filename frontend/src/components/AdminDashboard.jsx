@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Shield, Lock, Search, Filter, Download, Mail, CheckCircle, 
   Clock, Smartphone, TrendingUp, Users, DollarSign, Camera, LogOut, 
-  RefreshCw, Eye, QrCode, AlertCircle, ArrowUpRight, Check, XCircle
+  RefreshCw, Eye, QrCode, AlertCircle, ArrowUpRight, Check, XCircle, FileText
 } from 'lucide-react';
 import QrScanner from './QrScanner';
 import api, { API_BASE_URL } from '../api';
@@ -141,34 +141,49 @@ export default function AdminDashboard({ isOpen, onClose }) {
     }
   };
 
-  // Export CSV
-  const handleExportCsv = () => {
-    window.open(`${API_BASE_URL}/admin/tickets/export`, '_blank');
+  // Export CSV (Safe blob download with auth header)
+  const handleExportCsv = async () => {
+    try {
+      const res = await api.get('/admin/tickets/export', { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tickets_award_night_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export CSV error:", err);
+      // Fallback with token in URL parameter
+      window.open(`${API_BASE_URL}/admin/tickets/export?token=${token}`, '_blank');
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-100 text-slate-800 w-full min-h-screen flex flex-col font-sans animate-fadeIn">
       
-      {/* 1. TOP NAVIGATION HEADER */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between shadow-xs sticky top-0 z-30">
+      {/* 1. TOP NAVIGATION HEADER (Fully Responsive) */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md">
-            <Shield className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <Shield className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
               Administration Award Night
-              <span className="text-[11px] font-extrabold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+              <span className="text-[10px] font-extrabold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
                 PRO GALA
               </span>
             </h1>
-            <p className="text-xs text-slate-500">
-              Gestion centralisée des billets, suivi des encaissements et contrôle des entrées
+            <p className="text-[11px] text-slate-500 hidden sm:block">
+              Gestion des billets, suivi des encaissements & contrôle des entrées
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           {token && (
             <>
               <button
@@ -182,7 +197,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
               <button
                 onClick={handleLogout}
-                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Déconnexion</span>
@@ -192,7 +207,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
           <button 
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors ml-2"
+            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors ml-1"
             title="Fermer l'administration"
           >
             <X className="w-6 h-6" />
@@ -203,14 +218,14 @@ export default function AdminDashboard({ isOpen, onClose }) {
       {/* 2. LOGIN SCREEN FOR UNAUTHENTICATED USERS */}
       {!token ? (
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-8 space-y-6">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8 space-y-6">
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto text-blue-600 shadow-xs">
-                <Lock className="w-7 h-7" />
+              <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto text-blue-600 shadow-xs">
+                <Lock className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-black text-slate-900">Connexion Administrateur</h2>
               <p className="text-xs text-slate-500">
-                Saisissez vos identifiants pour gérer les inscriptions & scanner les billets.
+                Entrez vos identifiants pour accéder à l'espace de gestion Gala.
               </p>
             </div>
 
@@ -261,66 +276,49 @@ export default function AdminDashboard({ isOpen, onClose }) {
         </div>
       ) : (
         /* 3. AUTHENTICATED DASHBOARD BODY */
-        <div className="flex-1 px-4 sm:px-8 py-6 space-y-6 max-w-[1600px] w-full mx-auto">
+        <div className="flex-1 px-3 sm:px-8 py-5 space-y-5 max-w-[1600px] w-full mx-auto">
           
           {/* KPI STATS CARDS */}
           {stats && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-                <div className="space-y-1">
-                  <span className="text-xs font-extrabold uppercase text-slate-400">Recettes Total Validées</span>
-                  <span className="text-2xl font-black text-slate-900 block">
-                    {stats.total_revenue.toLocaleString('fr-FR')} F
-                  </span>
-                  <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" /> Paiements confirmés
-                  </span>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                  <DollarSign className="w-6 h-6" />
-                </div>
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Recettes Total</span>
+                <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
+                  {stats.total_revenue?.toLocaleString('fr-FR')} F
+                </span>
+                <span className="text-[10px] sm:text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 shrink-0" /> Paiements valides
+                </span>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-                <div className="space-y-1">
-                  <span className="text-xs font-extrabold uppercase text-slate-400">Billets / Inscriptions</span>
-                  <span className="text-2xl font-black text-slate-900 block">
-                    {stats.total_tickets_sold} Validé{stats.total_tickets_sold > 1 ? 's' : ''}
-                  </span>
-                  <span className="text-[11px] text-amber-600 font-bold flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> {stats.pending_count || 0} En attente
-                  </span>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
-                  <Users className="w-6 h-6" />
-                </div>
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Inscrits Total</span>
+                <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
+                  {tickets.length} Billet{tickets.length > 1 ? 's' : ''}
+                </span>
+                <span className="text-[10px] sm:text-[11px] text-amber-600 font-bold flex items-center gap-1">
+                  <Clock className="w-3 h-3 shrink-0" /> {stats.pending_count || 0} En attente
+                </span>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-                <div className="space-y-1">
-                  <span className="text-xs font-extrabold uppercase text-slate-400">Taux de Présence</span>
-                  <span className="text-2xl font-black text-slate-900 block">
-                    {stats.checked_in_count} / {stats.total_tickets_sold}
-                  </span>
-                  <span className="text-[11px] text-blue-600 font-bold">
-                    Scannés à l'entrée du Gala
-                  </span>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
-                  <Camera className="w-6 h-6" />
-                </div>
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Présence Gala</span>
+                <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
+                  {stats.checked_in_count} / {tickets.length}
+                </span>
+                <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold">
+                  Entrées scannées
+                </span>
               </div>
 
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-                <div className="space-y-1 w-full">
-                  <span className="text-xs font-extrabold uppercase text-slate-400">Par Opérateur</span>
-                  <div className="text-xs grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-semibold text-slate-600">
-                    <div>🌊 Wave: <b className="text-slate-900">{stats.operator_stats?.wave?.count || 0}</b></div>
-                    <div>🟡 MTN: <b className="text-slate-900">{stats.operator_stats?.mtn?.count || 0}</b></div>
-                    <div>🟠 Orange: <b className="text-slate-900">{stats.operator_stats?.orange?.count || 0}</b></div>
-                    <div>💳 Autre: <b className="text-slate-900">{(stats.operator_stats?.kkiapay?.count || 0) + (stats.operator_stats?.moov?.count || 0)}</b></div>
-                  </div>
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between col-span-2 lg:col-span-1">
+                <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Opérateurs</span>
+                <div className="text-[11px] grid grid-cols-2 gap-x-2 gap-y-0.5 pt-1 font-semibold text-slate-600">
+                  <div>🌊 Wave: <b className="text-slate-900">{stats.operator_stats?.wave?.count || 0}</b></div>
+                  <div>🟡 MTN: <b className="text-slate-900">{stats.operator_stats?.mtn?.count || 0}</b></div>
+                  <div>🟠 Orange: <b className="text-slate-900">{stats.operator_stats?.orange?.count || 0}</b></div>
+                  <div>💳 Autre: <b className="text-slate-900">{(stats.operator_stats?.kkiapay?.count || 0) + (stats.operator_stats?.moov?.count || 0)}</b></div>
                 </div>
               </div>
 
@@ -328,49 +326,49 @@ export default function AdminDashboard({ isOpen, onClose }) {
           )}
 
           {actionMessage && (
-            <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
-              <AlertCircle className="w-4 h-4 text-blue-600" />
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
               <span>{actionMessage}</span>
             </div>
           )}
 
           {/* MAIN TAB CONTENT CONTROLS */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-xs">
             
-            {/* Tabs */}
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+            {/* Responsive Tabs */}
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('tickets')}
-                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 ${
+                className={`py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'tickets' 
                     ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Users className="w-4 h-4" />
-                <span>Tableau des Inscriptions ({tickets.length})</span>
+                <span>Inscriptions ({tickets.length})</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('scanner')}
-                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 ${
+                className={`py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'scanner' 
                     ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Camera className="w-4 h-4" />
-                <span>Scanner QR Code Entrée</span>
+                <span>Scanner QR Code</span>
               </button>
             </div>
 
-            {/* Export Action */}
+            {/* Export CSV Action (Direct Blob API Call) */}
             <button
               onClick={handleExportCsv}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs shrink-0"
+              className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs shrink-0"
             >
               <Download className="w-4 h-4" />
-              <span>Exporter la liste en CSV</span>
+              <span>Exporter en CSV</span>
             </button>
           </div>
 
@@ -378,11 +376,11 @@ export default function AdminDashboard({ isOpen, onClose }) {
           {activeTab === 'scanner' ? (
             <QrScanner token={token} onValidationSuccess={() => { fetchStats(); fetchTickets(); }} />
           ) : (
-            /* TAB 2: TICKETS TABLE VIEW */
+            /* TAB 2: TICKETS VIEW */
             <div className="space-y-4">
               
               {/* Filters Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 
                 {/* Search */}
                 <div className="relative">
@@ -424,8 +422,83 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
               </div>
 
-              {/* Table Container */}
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+              {/* MOBILE CARDS VIEW (< sm screens) */}
+              <div className="block sm:hidden space-y-3">
+                {tickets.length === 0 ? (
+                  <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                    Aucun billet ou inscription trouvé.
+                  </div>
+                ) : (
+                  tickets.map((t) => (
+                    <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                      
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div>
+                          <span className="font-mono font-bold text-xs text-blue-700 block">{t.reference}</span>
+                          <span className="text-[10px] text-slate-400">{t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR') : ''}</span>
+                        </div>
+
+                        {t.qr_code_data && (
+                          <button
+                            onClick={() => setPreviewQrTicket(t)}
+                            className="p-1 bg-slate-50 border border-slate-200 rounded-lg shrink-0"
+                            title="Agrandir QR Code"
+                          >
+                            <img
+                              src={t.qr_code_data.startsWith('data:') ? t.qr_code_data : `data:image/png;base64,${t.qr_code_data}`}
+                              alt="QR"
+                              className="w-8 h-8 object-contain"
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="text-xs space-y-1">
+                        <p className="font-bold text-slate-900 text-sm">{t.buyer_name}</p>
+                        <p className="text-slate-500">Tél : {t.buyer_phone} • WA : {t.buyer_whatsapp}</p>
+                        <p className="text-slate-500">Email : {t.buyer_email || 'Non renseigné'}</p>
+                        <p className="font-extrabold text-slate-900 pt-0.5">
+                          Montant : {t.total_amount?.toLocaleString('fr-FR')} F ({t.payment_method?.toUpperCase()})
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                        {/* Status selector */}
+                        <select
+                          value={t.payment_status}
+                          onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-extrabold focus:outline-none border ${
+                            t.payment_status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                            t.payment_status === 'PENDING' ? 'bg-amber-50 text-amber-700 border-amber-300' :
+                            'bg-rose-50 text-rose-700 border-rose-300'
+                          }`}
+                        >
+                          <option value="SUCCESS">✅ PAYÉ</option>
+                          <option value="PENDING">⏳ PENDING</option>
+                          <option value="FAILED">❌ ÉCHOUÉ</option>
+                        </select>
+
+                        {/* Check-in toggle */}
+                        <button
+                          onClick={() => handleToggleCheckin(t.id)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border ${
+                            t.checked_in
+                              ? 'bg-emerald-600 text-white border-emerald-700'
+                              : 'bg-slate-100 text-slate-600 border-slate-300'
+                          }`}
+                        >
+                          {t.checked_in ? <Check className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                          <span>{t.checked_in ? 'Présent' : 'Non scanné'}</span>
+                        </button>
+                      </div>
+
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (>= sm screens) */}
+              <div className="hidden sm:block bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-slate-700">
                     

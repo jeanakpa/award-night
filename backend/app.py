@@ -55,19 +55,14 @@ def create_app():
         try:
             db.session.rollback()
             db.create_all()
-            print("[DB LOG] Tables PostgreSQL créées ou vérifiées avec succès.")
+            print("[DB LOG] Tables créées ou vérifiées avec succès.")
         except Exception as e:
-            print(f"[DB LOG] PostgreSQL note: {e}. Validation fallback SQLite...")
-            db.session.rollback()
+            print(f"[DB LOG] DB Init warning: {e}")
             try:
-                sqlite_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'instances'))
-                os.makedirs(sqlite_dir, exist_ok=True)
-                sqlite_path = os.path.join(sqlite_dir, 'award.db')
-                app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{sqlite_path}"
+                db.session.rollback()
                 db.create_all()
-                print("[DB LOG] Base de données SQLite locale activée.")
-            except Exception as sqle:
-                print(f"[DB LOG] SQLite fallback note: {sqle}")
+            except Exception as e2:
+                print(f"[DB LOG] DB Init retry warning: {e2}")
 
         # Migration helper for new columns
         try:

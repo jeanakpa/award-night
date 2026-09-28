@@ -87,7 +87,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
       }).toString();
 
       const res = await api.get(`/admin/tickets?${query}`);
-      if (res.data) {
+      if (res.data && Array.isArray(res.data)) {
         setTickets(res.data);
       }
     } catch (err) {
@@ -95,6 +95,27 @@ export default function AdminDashboard({ isOpen, onClose }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Safe helper to extract operator count safely (prevents React object child crash)
+  const getOpCount = (opKey) => {
+    if (!stats || !stats.operator_stats) return 0;
+    const val = stats.operator_stats[opKey];
+    if (typeof val === 'number') return val;
+    if (typeof val === 'object' && val !== null) return val.count || val.amount || 0;
+    return 0;
+  };
+
+  // Format payment method display label safely
+  const formatPaymentMethod = (method) => {
+    if (!method || typeof method !== 'string') return 'Jèko';
+    const m = method.toLowerCase();
+    if (m.includes('wave')) return 'Wave (via Jèko)';
+    if (m.includes('mtn')) return 'MTN Money (via Jèko)';
+    if (m.includes('orange')) return 'Orange Money (via Jèko)';
+    if (m.includes('moov')) return 'Moov Money (via Jèko)';
+    if (m.includes('kkiapay')) return 'KKiaPay / Carte';
+    return `${method.toUpperCase()} (via Jèko)`;
   };
 
   // Toggle Check-in status directly from row
@@ -199,18 +220,6 @@ export default function AdminDashboard({ isOpen, onClose }) {
       console.error("Export CSV error:", err);
       window.open(`${API_BASE_URL}/admin/tickets/export?token=${token}`, '_blank');
     }
-  };
-
-  // Format payment method display label
-  const formatPaymentMethod = (method) => {
-    if (!method) return 'Jèko';
-    const m = method.toLowerCase();
-    if (m.includes('wave')) return 'Wave (via Jèko)';
-    if (m.includes('mtn')) return 'MTN Money (via Jèko)';
-    if (m.includes('orange')) return 'Orange Money (via Jèko)';
-    if (m.includes('moov')) return 'Moov Money (via Jèko)';
-    if (m.includes('kkiapay')) return 'KKiaPay / Carte';
-    return `${method.toUpperCase()} (via Jèko)`;
   };
 
   return (
@@ -360,7 +369,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
                 <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Présence Gala</span>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 block my-1">
-                  {stats.checked_in_count} / {tickets.length}
+                  {stats.checked_in_count || 0} / {tickets.length}
                 </span>
                 <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold">
                   Entrées scannées
@@ -371,10 +380,10 @@ export default function AdminDashboard({ isOpen, onClose }) {
               <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between col-span-2 lg:col-span-1">
                 <span className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-400">Opérateurs (via Jèko)</span>
                 <div className="text-[11px] grid grid-cols-2 gap-x-2 gap-y-1 pt-1 font-semibold text-slate-700">
-                  <div className="flex items-center gap-1">🌊 Wave: <b className="text-slate-900 ml-auto">{stats.operator_stats?.wave || 0}</b></div>
-                  <div className="flex items-center gap-1">🟡 MTN: <b className="text-slate-900 ml-auto">{stats.operator_stats?.mtn || 0}</b></div>
-                  <div className="flex items-center gap-1">🟠 Orange: <b className="text-slate-900 ml-auto">{stats.operator_stats?.orange || 0}</b></div>
-                  <div className="flex items-center gap-1">💳 Autre: <b className="text-slate-900 ml-auto">{(stats.operator_stats?.kkiapay || 0) + (stats.operator_stats?.moov || 0) + (stats.operator_stats?.other || 0)}</b></div>
+                  <div className="flex items-center gap-1">🌊 Wave: <b className="text-slate-900 ml-auto">{getOpCount('wave')}</b></div>
+                  <div className="flex items-center gap-1">🟡 MTN: <b className="text-slate-900 ml-auto">{getOpCount('mtn')}</b></div>
+                  <div className="flex items-center gap-1">🟠 Orange: <b className="text-slate-900 ml-auto">{getOpCount('orange')}</b></div>
+                  <div className="flex items-center gap-1">💳 Autre: <b className="text-slate-900 ml-auto">{getOpCount('kkiapay') + getOpCount('moov') + getOpCount('other')}</b></div>
                 </div>
               </div>
 
@@ -418,13 +427,13 @@ export default function AdminDashboard({ isOpen, onClose }) {
               </button>
             </div>
 
-            {/* Export CSV Action (UTF-8 BOM with formatted phone text) */}
+            {/* Export CSV Action */}
             <button
               onClick={handleExportCsv}
               className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs shrink-0"
             >
               <Download className="w-4 h-4" />
-              <span>Exporter la liste en CSV (UTF-8)</span>
+              <span>Exporter la liste en CSV</span>
             </button>
           </div>
 
@@ -520,7 +529,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
 
                       <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                         
-                        {/* Clean Status Selector (Without icons) */}
+                        {/* Clean Status Selector */}
                         <select
                           value={t.payment_status}
                           onChange={(e) => handleUpdateStatus(t.id, e.target.value)}
@@ -649,7 +658,7 @@ export default function AdminDashboard({ isOpen, onClose }) {
                               {formatPaymentMethod(t.payment_method)}
                             </td>
 
-                            {/* Clean Payment Status Selector (Without icons) */}
+                            {/* Clean Payment Status Selector */}
                             <td className="py-3.5 px-4">
                               <select
                                 value={t.payment_status}
